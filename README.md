@@ -74,3 +74,31 @@ Set `APP_URL` in `.env` to the address people use to reach the app (e.g. `http:/
 so links in emails work.
 
 Data is stored in `tickets.db` (SQLite), including login sessions, so logins survive restarts.
+
+## Deploying on a Windows server
+
+One-time setup:
+
+1. Install [Node.js 24 LTS](https://nodejs.org), [Git](https://git-scm.com) and NSSM (`winget install NSSM.NSSM`).
+2. Download the app, e.g. into `C:\apps`:
+   ```
+   cd C:\apps
+   git clone https://github.com/thuutien/SimplicityTS.git
+   ```
+3. Copy `.env.example` to `.env` and fill it in. Set `APP_URL` to the address people will use,
+   e.g. `http://192.168.1.50:5000`. To keep existing data, copy `tickets.db` into the folder too
+   (stop the old copy of the app first).
+4. Double-click **`install-service.bat`** and accept the Windows permission prompt. It installs packages,
+   registers the `SimplicityTS` Windows service (starts with Windows, restarts if it crashes), opens the
+   port in Windows Firewall and schedules a daily database backup at 2:00 AM.
+
+Updating: double-click **`update.bat`**. It checks GitHub for a new version, backs up the database,
+stops the service, downloads the new code, installs packages and starts the service again. If the app
+doesn't start, it goes back to the previous version automatically.
+
+| What | Where |
+|---|---|
+| App log | `logs\service.log` |
+| Database backups | `backups\` (newest 30 kept; change with `BACKUP_DIR` / `BACKUP_KEEP` in `.env`) |
+| Manual backup | `node scripts\backup-db.js manual` |
+| Restart after editing `.env` | `Restart-Service SimplicityTS` (PowerShell as admin) |

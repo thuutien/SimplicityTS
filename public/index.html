@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ticket System</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Logged-out screens -->
+  <section id="auth-view" class="hidden">
+    <!-- Login -->
+    <form id="login-form" class="card auth-card" data-auth-card="login">
+      <h1>Ticket System</h1>
+      <p class="notice hidden" id="login-notice"></p>
+      <label>Email <input name="email" type="email" required autocomplete="username"></label>
+      <label>Password <input name="password" type="password" required autocomplete="current-password"></label>
+      <button type="submit">Log in</button>
+      <p class="error" id="login-error"></p>
+      <button type="button" id="resend-verification" class="link hidden">Resend verification email</button>
+      <div class="auth-links">
+        <a href="#forgot">Forgot password?</a>
+        <a href="#register">Create an account</a>
+      </div>
+    </form>
+
+    <!-- Register -->
+    <form id="register-form" class="card auth-card" data-auth-card="register">
+      <h1>Create an account</h1>
+      <p class="muted">Use your company email address. We'll send you a link to activate your account.</p>
+      <div class="row">
+        <label>First name <input name="first_name" required maxlength="50" autocomplete="given-name"></label>
+        <label>Last name <input name="last_name" required maxlength="50" autocomplete="family-name"></label>
+      </div>
+      <label>Work email <input name="email" type="email" required placeholder="you@retailking.com" autocomplete="email"></label>
+      <label>Password <input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+      <label>Confirm password <input name="confirm" type="password" required minlength="8" autocomplete="new-password"></label>
+      <p class="hint">At least 8 characters.</p>
+      <button type="submit">Create account</button>
+      <p class="error" id="register-error"></p>
+      <div class="auth-links"><a href="#login">Already have an account? Log in</a></div>
+    </form>
+
+    <!-- Forgot password -->
+    <form id="forgot-form" class="card auth-card" data-auth-card="forgot">
+      <h1>Forgot password</h1>
+      <p class="muted">Enter your email and we'll send you a link to reset your password.</p>
+      <label>Email <input name="email" type="email" required autocomplete="username"></label>
+      <button type="submit">Send reset link</button>
+      <p class="error" id="forgot-error"></p>
+      <div class="auth-links"><a href="#login">Back to login</a></div>
+    </form>
+
+    <!-- Reset password (from emailed link) -->
+    <form id="reset-form" class="card auth-card" data-auth-card="reset">
+      <h1>Choose a new password</h1>
+      <label>New password <input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+      <label>Confirm new password <input name="confirm" type="password" required minlength="8" autocomplete="new-password"></label>
+      <p class="hint">At least 8 characters.</p>
+      <button type="submit">Set new password</button>
+      <p class="error" id="reset-error"></p>
+      <div class="auth-links"><a href="#forgot">Request a new link</a></div>
+    </form>
+
+    <!-- Generic message (e.g. after registering or verifying) -->
+    <div class="card auth-card" data-auth-card="message">
+      <h1 id="message-title"></h1>
+      <p id="message-body"></p>
+      <div class="auth-links"><a href="#login">Go to login</a></div>
+    </div>
+  </section>
+
+  <!-- App -->
+  <section id="app-view" class="hidden">
+    <header>
+      <h1>Ticket System</h1>
+      <nav>
+        <button data-nav="tickets">Tickets</button>
+        <button data-nav="new">New ticket</button>
+        <button data-nav="users" class="admin-only">Users</button>
+      </nav>
+      <div class="me">
+        <button data-nav="account" class="link me-link" title="My account"><span id="me-name"></span></button>
+        <span id="me-role" class="badge"></span> <span id="me-dept" class="badge dept hidden"></span>
+        <button id="logout" class="link">Log out</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- Ticket list -->
+      <div id="tickets-page" class="page">
+        <div class="toolbar">
+          <h2 id="tickets-heading">Tickets</h2>
+          <div class="filters">
+            <select id="department-filter" class="department-select">
+              <option value="">All departments</option>
+            </select>
+            <select id="assigned-filter" class="staff-only">
+              <option value="">Anyone</option>
+              <option value="me">Assigned to me</option>
+              <option value="none">Unassigned</option>
+            </select>
+            <select id="status-filter">
+              <option value="">All statuses</option>
+              <option value="open">Open</option>
+              <option value="in_progress">In progress</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+        </div>
+        <table class="card">
+          <thead>
+            <tr><th>#</th><th>Title</th><th>Department</th><th>Priority</th><th>Status</th><th class="staff-only">Created by</th><th>Assigned to</th><th>Updated</th></tr>
+          </thead>
+          <tbody id="ticket-rows"></tbody>
+        </table>
+        <p id="no-tickets" class="muted hidden">No tickets found.</p>
+      </div>
+
+      <!-- New ticket -->
+      <div id="new-page" class="page">
+        <form id="new-ticket-form" class="card">
+          <h2>New ticket</h2>
+          <label>Request Type
+            <select name="request_type" id="request-type" required>
+              <option value="production" selected>Production Request</option>
+              <option value="it">Report Issue to IT</option>
+            </select>
+          </label>
+
+          <!-- Shown for "Production Request". Disabled fieldsets are skipped by validation and form submission. -->
+          <fieldset class="request-fields hidden" data-request-type="production" disabled>
+            <label>Location <input name="location" class="input-short" required maxlength="100"></label>
+            <label>Request
+              <select name="request_item" required>
+                <option value="">Choose a request...</option>
+                <option>Work Cart</option>
+                <option>Empty Cart</option>
+                <option>RMA</option>
+                <option>Tech Issue</option>
+              </select>
+            </label>
+            <label>Additional Info <textarea name="description" rows="4"></textarea></label>
+          </fieldset>
+
+          <!-- Shown for "Report Issue to IT" -->
+          <fieldset class="request-fields hidden" data-request-type="it" disabled>
+            <label>Location <input name="location" class="input-short" required maxlength="100"></label>
+            <label>Issue Description <textarea name="description" rows="5" required></textarea></label>
+          </fieldset>
+
+          <button type="submit">Submit ticket</button>
+          <p class="error" id="new-ticket-error"></p>
+        </form>
+      </div>
+
+      <!-- Ticket detail -->
+      <div id="detail-page" class="page">
+        <button class="link" data-nav="tickets">&larr; Back to tickets</button>
+        <div id="ticket-detail" class="card"></div>
+        <div class="card">
+          <h3>Comments</h3>
+          <div id="comments"></div>
+          <p id="comment-readonly" class="muted hidden"></p>
+          <form id="comment-form">
+            <textarea name="body" rows="3" placeholder="Write a comment..." required></textarea>
+            <button type="submit">Add comment</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- My account -->
+      <div id="account-page" class="page">
+        <h2>My account</h2>
+        <div class="card">
+          <h3>Profile</h3>
+          <p class="muted" id="account-summary"></p>
+          <p class="hint">To change your email address, contact an administrator.</p>
+          <form id="profile-form">
+            <div class="row">
+              <label>First name <input name="first_name" required maxlength="50"></label>
+              <label>Last name <input name="last_name" required maxlength="50"></label>
+            </div>
+            <button type="submit">Save name</button>
+            <p class="notice hidden" id="profile-notice"></p>
+            <p class="error" id="profile-error"></p>
+          </form>
+        </div>
+
+        <form id="password-form" class="card">
+          <h3>Change password</h3>
+          <label>Current password <input name="current_password" type="password" required autocomplete="current-password"></label>
+          <label>New password <input name="new_password" type="password" required minlength="8" autocomplete="new-password"></label>
+          <label>Confirm new password <input name="confirm" type="password" required minlength="8" autocomplete="new-password"></label>
+          <p class="hint">At least 8 characters. You'll be signed out on your other devices.</p>
+          <button type="submit">Change password</button>
+          <p class="notice hidden" id="password-notice"></p>
+          <p class="error" id="password-error"></p>
+        </form>
+
+      </div>
+
+      <!-- Users (admin) -->
+      <div id="users-page" class="page">
+        <h2>Users</h2>
+        <table class="card">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Created</th><th></th></tr></thead>
+          <tbody id="user-rows"></tbody>
+        </table>
+        <p class="notice hidden" id="user-list-notice"></p>
+        <p class="error" id="user-list-error"></p>
+        <form id="user-form" class="card">
+          <h3 id="user-form-title">Add user</h3>
+          <input type="hidden" name="id">
+          <div class="row">
+            <label>First name <input name="first_name" required maxlength="50"></label>
+            <label>Last name <input name="last_name" required maxlength="50"></label>
+          </div>
+          <label>Email <input name="email" type="email" required></label>
+          <label><span id="password-label">Password</span> <input name="password" type="password" minlength="8"></label>
+          <label>Role
+            <select name="role">
+              <option value="employee">Employee</option>
+              <option value="agent">Agent</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <label id="user-department-field" class="hidden">Department
+            <select name="department_id" class="department-select">
+              <option value="">No department</option>
+            </select>
+          </label>
+          <div class="form-actions">
+            <button type="submit" id="user-form-submit">Create user</button>
+            <button type="button" id="user-form-cancel" class="secondary hidden">Cancel</button>
+          </div>
+          <p class="error" id="user-form-error"></p>
+        </form>
+      </div>
+    </main>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>

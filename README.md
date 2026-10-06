@@ -9,7 +9,7 @@ npm install
 npm start
 ```
 
-Open http://localhost:3000. Requires Node 22.13+ (uses the built-in `node:sqlite`).
+Open http://localhost:5000. Requires Node 22.13+ (uses the built-in `node:sqlite`).
 
 ## First admin account
 
@@ -70,7 +70,7 @@ Restart the server after changing it. Without SMTP settings, emails are printed 
 
 Nobody is emailed about their own actions. Every email is logged in the `email_outbox` table; failed sends are retried up to 5 times.
 
-Set `APP_URL` in `.env` to the address people use to reach the app (e.g. `http://192.168.1.50:3000`)
+Set `APP_URL` in `.env` to the address people use to reach the app (e.g. `http://192.168.1.50:5000`)
 so links in emails work.
 
 Data is stored in `tickets.db` (SQLite), including login sessions, so logins survive restarts.

@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 const { db } = require('./db');
 
-const APP_URL = (process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
+const APP_URL = (process.env.APP_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, '');
 const APP_NAME = process.env.APP_NAME || 'Retail King Helpdesk';
 const MAX_ATTEMPTS = 5;
 

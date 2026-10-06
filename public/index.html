@@ -89,6 +89,8 @@
     <main>
       <!-- Ticket list -->
       <div id="tickets-page" class="page">
+       <div class="tickets-layout">
+        <div class="tickets-main">
         <div class="toolbar">
           <h2 id="tickets-heading">Tickets</h2>
           <div class="filters">
@@ -129,6 +131,11 @@
           <tbody id="ticket-rows"></tbody>
         </table>
         <p id="no-tickets" class="muted hidden">No tickets found.</p>
+        </div>
+
+        <!-- Summary panel (agents and admins) -->
+        <aside id="summary-panel" class="summary staff-only" aria-label="Ticket summary"></aside>
+       </div>
       </div>
 
       <!-- New ticket -->

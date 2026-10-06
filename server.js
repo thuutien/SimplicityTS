@@ -464,7 +464,10 @@ app.patch('/api/tickets/:id', requireAuth, (req, res) => {
   }
   if (!Object.keys(updates).length) return res.status(400).json({ error: 'Nothing to update' });
 
-  const sets = Object.keys(updates).map(k => `${k} = ?`).join(', ');
+  let sets = Object.keys(updates).map(k => `${k} = ?`).join(', ');
+  // Remember when a ticket was closed (for "closed today"); clear it if the ticket is reopened.
+  if (updates.status === 'closed' && ticket.status !== 'closed') sets += ", closed_at = datetime('now')";
+  if (updates.status && updates.status !== 'closed') sets += ', closed_at = NULL';
   db.prepare(`UPDATE tickets SET ${sets}, updated_at = datetime('now') WHERE id = ?`)
     .run(...Object.values(updates), ticket.id);
   notify.ticketUpdated(ticket, req.user.id);
@@ -490,6 +493,51 @@ app.post('/api/tickets/:id/comments', requireAuth, (req, res) => {
   db.prepare("UPDATE tickets SET updated_at = datetime('now') WHERE id = ?").run(ticket.id);
   notify.commentAdded(ticket.id, req.user.id, body, commentId);
   res.status(201).json({ ok: true });
+});
+
+// Numbers for the summary panel on the ticket list (agents and admins).
+// The browser sends today's start/end as UTC ("YYYY-MM-DD HH:MM:SS") so "today" follows the viewer's local time.
+app.get('/api/summary', requireAuth, requireStaff, (req, res) => {
+  const utcTime = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+  const { from, to } = req.query;
+  if (!utcTime.test(from || '') || !utcTime.test(to || '')) return res.status(400).json({ error: 'from and to are required' });
+
+  const today = db.prepare(`
+    SELECT
+      (SELECT COUNT(*) FROM tickets WHERE created_at >= ? AND created_at < ?) AS created,
+      (SELECT COUNT(*) FROM tickets WHERE closed_at >= ? AND closed_at < ?) AS closed
+  `).get(from, to, from, to);
+
+  const open = db.prepare(`
+    SELECT
+      COUNT(*) AS total,
+      SUM(status = 'open') AS open,
+      SUM(status = 'in_progress') AS in_progress,
+      SUM(status = 'resolved') AS resolved,
+      SUM(assigned_to IS NULL) AS unassigned,
+      SUM(assigned_to = ?) AS mine
+    FROM tickets WHERE status != 'closed'
+  `).get(req.user.id);
+  for (const k of Object.keys(open)) open[k] = open[k] ?? 0;
+
+  const departments = db.prepare(`
+    SELECT d.id, d.name,
+      SUM(t.created_at >= ? AND t.created_at < ?) AS created_today,
+      SUM(t.closed_at >= ? AND t.closed_at < ?) AS closed_today,
+      SUM(t.status != 'closed') AS open
+    FROM departments d LEFT JOIN tickets t ON t.department_id = d.id
+    GROUP BY d.id ORDER BY d.name
+  `).all(from, to, from, to).map(d => ({
+    ...d, created_today: d.created_today ?? 0, closed_today: d.closed_today ?? 0, open: d.open ?? 0,
+  }));
+
+  const requestsToday = db.prepare(`
+    SELECT request_item AS item, COUNT(*) AS count FROM tickets
+    WHERE request_item IS NOT NULL AND created_at >= ? AND created_at < ?
+    GROUP BY request_item ORDER BY count DESC, request_item
+  `).all(from, to);
+
+  res.json({ today, open, departments, requests_today: requestsToday });
 });
 
 app.get('/api/departments', requireAuth, (req, res) => {

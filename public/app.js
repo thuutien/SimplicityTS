@@ -179,7 +179,72 @@ const localDateString = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padS
 // A Date as the database's UTC format "YYYY-MM-DD HH:MM:SS"
 const toDbTime = d => d.toISOString().slice(0, 19).replace('T', ' ');
 
+// ----- summary panel (agents and admins) -----
+
+async function loadSummary() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  let s;
+  try {
+    s = await api('GET', `/api/summary?${new URLSearchParams({ from: toDbTime(start), to: toDbTime(end) })}`);
+  } catch {
+    return; // keep the last numbers if a refresh fails
+  }
+  const tile = (num, lbl) => `<div class="tile"><div class="num">${num}</div><div class="lbl">${esc(lbl)}</div></div>`;
+  const row = (lbl, val) => `<li><span>${esc(lbl)}</span><span class="val">${val}</span></li>`;
+  const todayLabel = now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+
+  $('#summary-panel').innerHTML = `
+    <div class="card">
+      <h3>Today <span class="muted">· ${esc(todayLabel)}</span></h3>
+      <div class="tiles">
+        ${tile(s.today.created, 'New tickets')}
+        ${tile(s.today.closed, 'Closed')}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Open now</h3>
+      <div class="tiles">
+        ${tile(s.open.total, 'Open tickets')}
+        ${tile(s.open.unassigned, 'Unassigned')}
+      </div>
+      <ul class="stat-rows" style="margin-top: 8px;">
+        ${row('Open', s.open.open)}
+        ${row('In progress', s.open.in_progress)}
+        ${row('Resolved', s.open.resolved)}
+        ${row('Assigned to me', s.open.mine)}
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>By department</h3>
+      <table class="dept-table">
+        <thead><tr><th>Department</th><th class="n" title="Created today">New today</th><th class="n" title="Closed today">Closed today</th><th class="n">Open</th></tr></thead>
+        <tbody>
+          ${s.departments.map(d => `<tr>
+            <td>${esc(d.name)}</td><td class="n">${d.created_today}</td><td class="n">${d.closed_today}</td><td class="n">${d.open}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Production requests today</h3>
+      ${s.requests_today.length
+        ? `<ul class="stat-rows">${s.requests_today.map(r => row(r.item, r.count)).join('')}</ul>`
+        : '<p class="muted" style="margin: 0; font-size: 14px;">None yet today.</p>'}
+    </div>`;
+}
+
+// Keep the summary current while the ticket list is on screen
+setInterval(() => {
+  if (isStaff() && !document.hidden && $('#tickets-page').classList.contains('active')) loadSummary();
+}, 60 * 1000);
+
 async function loadTickets() {
+  if (isStaff()) loadSummary();
   const query = new URLSearchParams({ state: ticketState });
   if (ticketState === 'open' && $('#status-filter').value) query.set('status', $('#status-filter').value);
   // Tickets created on the chosen day, in the viewer's local time

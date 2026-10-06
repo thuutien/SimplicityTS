@@ -172,9 +172,24 @@ $('#logout').addEventListener('click', async () => {
 
 // ---------- tickets ----------
 
+let ticketState = 'open'; // Open / Closed buttons
+
+// Local date as YYYY-MM-DD (for the date picker)
+const localDateString = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+// A Date as the database's UTC format "YYYY-MM-DD HH:MM:SS"
+const toDbTime = d => d.toISOString().slice(0, 19).replace('T', ' ');
+$('#date-filter').value = localDateString(new Date()); // default: today
+
 async function loadTickets() {
-  const query = new URLSearchParams();
-  if ($('#status-filter').value) query.set('status', $('#status-filter').value);
+  const query = new URLSearchParams({ state: ticketState });
+  if (ticketState === 'open' && $('#status-filter').value) query.set('status', $('#status-filter').value);
+  // Tickets created on the chosen day, in the viewer's local time
+  const day = $('#date-filter').value;
+  if (day) {
+    const [y, m, d] = day.split('-').map(Number);
+    query.set('created_from', toDbTime(new Date(y, m - 1, d)));
+    query.set('created_to', toDbTime(new Date(y, m - 1, d + 1)));
+  }
   if ($('#department-filter').value) query.set('department', $('#department-filter').value);
   if (isStaff() && $('#assigned-filter').value) query.set('assigned', $('#assigned-filter').value);
   const tickets = await api('GET', '/api/tickets?' + query);
@@ -191,8 +206,26 @@ async function loadTickets() {
       <td>${fmtDate(t.updated_at)}</td>
     </tr>`).join('');
   $('#no-tickets').classList.toggle('hidden', tickets.length > 0);
+  $('#no-tickets').textContent = `No ${ticketState} tickets${day
+    ? ` created on ${new Date(day + 'T00:00').toLocaleDateString(undefined, { dateStyle: 'medium' })}. Click "All dates" to see older tickets.`
+    : '.'}`;
 }
 
+document.querySelectorAll('.segmented [data-state]').forEach(btn => btn.addEventListener('click', () => {
+  ticketState = btn.dataset.state;
+  document.querySelectorAll('.segmented [data-state]').forEach(b => b.classList.toggle('active', b === btn));
+  $('#status-filter').classList.toggle('hidden', ticketState === 'closed'); // status choices only apply to open tickets
+  loadTickets();
+}));
+$('#date-filter').addEventListener('change', loadTickets);
+$('#date-today').addEventListener('click', () => {
+  $('#date-filter').value = localDateString(new Date());
+  loadTickets();
+});
+$('#date-all').addEventListener('click', () => {
+  $('#date-filter').value = '';
+  loadTickets();
+});
 $('#status-filter').addEventListener('change', loadTickets);
 $('#assigned-filter').addEventListener('change', loadTickets);
 $('#department-filter').addEventListener('change', loadTickets);

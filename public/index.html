@@ -92,6 +92,20 @@
         <div class="toolbar">
           <h2 id="tickets-heading">Tickets</h2>
           <div class="filters">
+            <div class="segmented" role="group" aria-label="Show open or closed tickets">
+              <button type="button" class="active" data-state="open">Open</button>
+              <button type="button" data-state="closed">Closed</button>
+            </div>
+            <div class="date-filter">
+              <input type="date" id="date-filter" aria-label="Created on">
+              <button type="button" id="date-today" class="secondary">Today</button>
+              <button type="button" id="date-all" class="secondary">All dates</button>
+            </div>
+          </div>
+        </div>
+        <div class="toolbar">
+          <span></span>
+          <div class="filters">
             <select id="department-filter" class="department-select">
               <option value="">All departments</option>
             </select>
@@ -101,11 +115,10 @@
               <option value="none">Unassigned</option>
             </select>
             <select id="status-filter">
-              <option value="">All statuses</option>
+              <option value="">All open statuses</option>
               <option value="open">Open</option>
               <option value="in_progress">In progress</option>
               <option value="resolved">Resolved</option>
-              <option value="closed">Closed</option>
             </select>
           </div>
         </div>

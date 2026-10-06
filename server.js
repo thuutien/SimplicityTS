@@ -344,6 +344,19 @@ app.get('/api/tickets', requireAuth, (req, res) => {
     where.push('t.status = ?');
     params.push(req.query.status);
   }
+  // Open = anything not closed yet (open, in progress, resolved)
+  if (req.query.state === 'open') where.push("t.status != 'closed'");
+  if (req.query.state === 'closed') where.push("t.status = 'closed'");
+  // Created between two UTC times ("YYYY-MM-DD HH:MM:SS"); the browser converts the chosen local day.
+  const utcTime = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+  if (utcTime.test(req.query.created_from || '')) {
+    where.push('t.created_at >= ?');
+    params.push(req.query.created_from);
+  }
+  if (utcTime.test(req.query.created_to || '')) {
+    where.push('t.created_at < ?');
+    params.push(req.query.created_to);
+  }
   if (req.query.department) {
     where.push('t.department_id = ?');
     params.push(Number(req.query.department));

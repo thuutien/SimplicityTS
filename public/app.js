@@ -178,7 +178,6 @@ let ticketState = 'open'; // Open / Closed buttons
 const localDateString = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 // A Date as the database's UTC format "YYYY-MM-DD HH:MM:SS"
 const toDbTime = d => d.toISOString().slice(0, 19).replace('T', ' ');
-$('#date-filter').value = localDateString(new Date()); // default: today
 
 async function loadTickets() {
   const query = new URLSearchParams({ state: ticketState });

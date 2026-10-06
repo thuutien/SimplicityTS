@@ -30,7 +30,34 @@ main { max-width: 1280px; margin: 24px auto; padding: 0 16px; }
 .summary h3 { font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 10px; }
 .summary h3 .muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.tile { background: #f9fafb; border-radius: 6px; padding: 10px 12px; }
+/* Chart colors. Status hues match the status badges; checked for color-blind separation. */
+:root {
+  --st-open: #2563eb;
+  --st-in-progress: #f59e0b;
+  --st-resolved: #059669;
+  --dept-it: #7c3aed;
+  --dept-prod: #db2777;
+}
+.tile { background: #f9fafb; border-radius: 6px; padding: 10px 12px; border-left: 4px solid #d1d5db; }
+.tile.tone-blue { background: #eff6ff; border-left-color: var(--st-open); }
+.tile.tone-green { background: #ecfdf5; border-left-color: var(--st-resolved); }
+.tile.tone-amber { background: #fffbeb; border-left-color: var(--st-in-progress); }
+.tile.tone-amber .lbl { color: #92400e; font-weight: 500; }
+.tile.tone-gray { background: #f9fafb; border-left-color: #d1d5db; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 8px; vertical-align: 0; background: #9ca3af; }
+.dot.st-open, .seg.st-open { background: var(--st-open); }
+.dot.st-in_progress, .seg.st-in_progress { background: var(--st-in-progress); }
+.dot.st-resolved, .seg.st-resolved { background: var(--st-resolved); }
+.dot.dept-it { background: var(--dept-it); }
+.dot.dept-prod { background: var(--dept-prod); }
+.stack-bar { display: flex; gap: 2px; height: 8px; margin: 12px 0 4px; }
+.stack-bar .seg { border-radius: 4px; min-width: 6px; }
+.bar-rows { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+.bar-rows li { padding: 5px 0; }
+.bar-label { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.bar-label .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.bar-track { height: 6px; background: #f3f4f6; border-radius: 4px; }
+.bar-fill { height: 100%; background: var(--dept-prod); border-radius: 4px; min-width: 6px; }
 .tile .num { font-size: 26px; font-weight: 600; line-height: 1.1; color: #111827; font-variant-numeric: tabular-nums; }
 .tile .lbl { font-size: 12px; color: #6b7280; margin-top: 2px; }
 .stat-rows { list-style: none; margin: 0; padding: 0; font-size: 14px; }
@@ -42,6 +69,7 @@ main { max-width: 1280px; margin: 24px auto; padding: 0 16px; }
 .dept-table th { font-weight: 500; color: #6b7280; font-size: 12px; }
 .dept-table td.n, .dept-table th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .dept-table tr:last-child td { border-bottom: none; }
+.dept-table td:first-child { white-space: nowrap; }
 @media (max-width: 1000px) {
   .tickets-layout { grid-template-columns: minmax(0, 1fr); }
 }

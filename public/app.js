@@ -191,49 +191,68 @@ async function loadSummary() {
   } catch {
     return; // keep the last numbers if a refresh fails
   }
-  const tile = (num, lbl) => `<div class="tile"><div class="num">${num}</div><div class="lbl">${esc(lbl)}</div></div>`;
-  const row = (lbl, val) => `<li><span>${esc(lbl)}</span><span class="val">${val}</span></li>`;
+  // tone: colored accent for the tile (see .tile.* in style.css)
+  const tile = (num, lbl, tone) => `<div class="tile ${tone}"><div class="num">${num}</div><div class="lbl">${esc(lbl)}</div></div>`;
+  const dot = cls => `<span class="dot ${cls}" aria-hidden="true"></span>`;
+  const row = (lbl, val, dotCls) => `<li><span>${dotCls ? dot(dotCls) : ''}${esc(lbl)}</span><span class="val">${val}</span></li>`;
   const todayLabel = now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+
+  // Open tickets split by status, as one stacked bar
+  const statuses = [['open', 'Open'], ['in_progress', 'In progress'], ['resolved', 'Resolved']];
+  const statusBar = s.open.total
+    ? `<div class="stack-bar" role="img" aria-label="${statuses.map(([k, l]) => `${l} ${s.open[k]}`).join(', ')}">
+        ${statuses.filter(([k]) => s.open[k]).map(([k, l]) =>
+          `<span class="seg st-${k}" style="flex: ${s.open[k]}" title="${l}: ${s.open[k]}"></span>`).join('')}
+      </div>`
+    : '';
+
+  const deptClass = name => ({ 'IT Support': 'dept-it', Production: 'dept-prod' })[name] || 'dept-other';
+  const maxRequest = Math.max(1, ...s.requests_today.map(r => r.count));
 
   $('#summary-panel').innerHTML = `
     <div class="card">
       <h3>Today <span class="muted">· ${esc(todayLabel)}</span></h3>
       <div class="tiles">
-        ${tile(s.today.created, 'New tickets')}
-        ${tile(s.today.closed, 'Closed')}
+        ${tile(s.today.created, 'New tickets', 'tone-blue')}
+        ${tile(s.today.closed, 'Closed', 'tone-green')}
       </div>
     </div>
 
     <div class="card">
       <h3>Open now</h3>
       <div class="tiles">
-        ${tile(s.open.total, 'Open tickets')}
-        ${tile(s.open.unassigned, 'Unassigned')}
+        ${tile(s.open.total, 'Open tickets', 'tone-blue')}
+        ${tile(s.open.unassigned, s.open.unassigned ? '⚠ Unassigned' : 'Unassigned', s.open.unassigned ? 'tone-amber' : 'tone-gray')}
       </div>
-      <ul class="stat-rows" style="margin-top: 8px;">
-        ${row('Open', s.open.open)}
-        ${row('In progress', s.open.in_progress)}
-        ${row('Resolved', s.open.resolved)}
+      ${statusBar}
+      <ul class="stat-rows">
+        ${row('Open', s.open.open, 'st-open')}
+        ${row('In progress', s.open.in_progress, 'st-in_progress')}
+        ${row('Resolved', s.open.resolved, 'st-resolved')}
         ${row('Assigned to me', s.open.mine)}
       </ul>
     </div>
 
     <div class="card">
-      <h3>By department</h3>
+      <h3>By department <span class="muted">· new &amp; closed today</span></h3>
       <table class="dept-table">
-        <thead><tr><th>Department</th><th class="n" title="Created today">New today</th><th class="n" title="Closed today">Closed today</th><th class="n">Open</th></tr></thead>
+        <thead><tr><th>Department</th><th class="n" title="Created today">New</th><th class="n" title="Closed today">Closed</th><th class="n" title="Open right now">Open</th></tr></thead>
         <tbody>
           ${s.departments.map(d => `<tr>
-            <td>${esc(d.name)}</td><td class="n">${d.created_today}</td><td class="n">${d.closed_today}</td><td class="n">${d.open}</td>
+            <td>${dot(deptClass(d.name))}${esc(d.name)}</td><td class="n">${d.created_today}</td><td class="n">${d.closed_today}</td><td class="n">${d.open}</td>
           </tr>`).join('')}
         </tbody>
       </table>
     </div>
 
     <div class="card">
-      <h3>Production requests today</h3>
+      <h3>${dot('dept-prod')}Production requests today</h3>
       ${s.requests_today.length
-        ? `<ul class="stat-rows">${s.requests_today.map(r => row(r.item, r.count)).join('')}</ul>`
+        ? `<ul class="bar-rows">${s.requests_today.map(r => `
+            <li title="${esc(r.item)}: ${r.count}">
+              <div class="bar-label"><span>${esc(r.item)}</span><span class="val">${r.count}</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width: ${(r.count / maxRequest) * 100}%"></div></div>
+            </li>`).join('')}</ul>`
         : '<p class="muted" style="margin: 0; font-size: 14px;">None yet today.</p>'}
     </div>`;
 }

@@ -86,7 +86,8 @@ immediately, no restart needed. Values saved there override `.env`; empty fields
 | Comment by the creator | The assignee, or every agent in the department plus all admins if unassigned |
 | Ticket moved to another department | That department's agents |
 
-Nobody is emailed about their own actions. Every email is logged in the `email_outbox` table; failed sends are retried up to 5 times.
+All emails about a ticket share the same subject (`[#42] Work Cart – Line 3`) and thread headers, so mail apps
+such as Gmail group them into one conversation. Nobody is emailed about their own actions. Every email is logged in the `email_outbox` table; failed sends are retried up to 5 times.
 
 Set `APP_URL` in `.env` to the address people use to reach the app (e.g. `http://192.168.1.50:5000`)
 so links in emails work.

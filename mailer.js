@@ -54,6 +54,14 @@ function getTransport(values = getEmailConfig().values) {
   return cached.transport;
 }
 
+// Every email in a thread points at the same (virtual) first message, which mail apps use to group them.
+function threadHeaders(thread, values) {
+  if (!thread) return {};
+  const domain = (fromAddress(values).address.split('@')[1] || 'simplicityts.local').toLowerCase();
+  const root = `<${thread}@${domain}>`;
+  return { 'In-Reply-To': root, References: root };
+}
+
 const fromAddress = values => ({ name: values.app_name, address: values.mail_from || values.smtp_user || 'helpdesk@localhost' });
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -114,11 +122,12 @@ function render({ greeting, lines = [], quote, button, details, history, footer 
 }
 
 // Queues an email. It is sent in the background so a slow mail server never delays the user.
-function queueEmail(to, subject, content) {
+// options.thread: emails with the same thread (e.g. "ticket-42") are grouped into one conversation by mail apps.
+function queueEmail(to, subject, content, { thread = null } = {}) {
   if (!to) return;
   const { text, html } = render(content);
-  db.prepare('INSERT INTO email_outbox (to_email, subject, text_body, html_body) VALUES (?, ?, ?, ?)')
-    .run(to, subject, text, html);
+  db.prepare('INSERT INTO email_outbox (to_email, subject, text_body, html_body, thread) VALUES (?, ?, ?, ?, ?)')
+    .run(to, subject, text, html, thread);
   setImmediate(processOutbox);
 }
 
@@ -136,7 +145,10 @@ async function processOutbox() {
     for (const email of pending) {
       try {
         if (transport) {
-          await transport.sendMail({ from: fromAddress(values), to: email.to_email, subject: email.subject, text: email.text_body, html: email.html_body });
+          await transport.sendMail({
+            from: fromAddress(values), to: email.to_email, subject: email.subject, text: email.text_body, html: email.html_body,
+            headers: threadHeaders(email.thread, values),
+          });
         } else {
           console.log(`\n[email not sent: SMTP not configured]\nTo: ${email.to_email}\nSubject: ${email.subject}\n\n${email.text_body}\n`);
         }

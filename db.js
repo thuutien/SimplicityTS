@@ -135,6 +135,8 @@ addColumnIfMissing('tickets', 'department_id', 'INTEGER REFERENCES departments(i
 // Request form fields: where the problem is, and (for production requests) what is being requested
 addColumnIfMissing('tickets', 'location', 'TEXT');
 addColumnIfMissing('tickets', 'request_item', 'TEXT');
+// Emails about the same ticket share a thread so mail apps group them
+addColumnIfMissing('email_outbox', 'thread', 'TEXT');
 // When the ticket was closed. Tickets closed before this existed use their last update time.
 if (addColumnIfMissing('tickets', 'closed_at', 'TEXT')) {
   db.exec("UPDATE tickets SET closed_at = updated_at WHERE status = 'closed'");

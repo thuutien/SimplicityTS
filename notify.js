@@ -28,12 +28,15 @@ function departmentRecipients(departmentId) {
 }
 
 // Sends to each recipient once, never to the person who made the change.
-function send(recipients, actorId, subject, build) {
+// All emails about a ticket share one subject and one thread reference, so mail apps group them.
+function send(recipients, actorId, ticket, build) {
+  const subject = subjectFor(ticket);
+  const thread = `ticket-${ticket.id}`;
   const seen = new Set([actorId]);
   for (const user of recipients) {
     if (!user || seen.has(user.id)) continue;
     seen.add(user.id);
-    queueEmail(user.email, subject, build(user));
+    queueEmail(user.email, subject, build(user), { thread });
   }
 }
 
@@ -44,12 +47,12 @@ const ticketDetails = t => [
   ...(!t.request_item && !t.location ? [`Title: ${t.title}`] : []),
 ];
 
-const subjectFor = (t, suffix) => `[#${t.id}] ${t.title} – ${suffix}`;
+const subjectFor = t => `[#${t.id}] ${t.title}`;
 
 function ticketCreated(ticketId, actorId) {
   const t = getTicket(ticketId);
   const creator = getUser(t.created_by);
-  send(departmentRecipients(t.department_id), actorId, subjectFor(t, 'New ticket'), user => ({
+  send(departmentRecipients(t.department_id), actorId, t, user => ({
     greeting: `Hi ${user.first_name},`,
     lines: [
       `${creator.name} created a new ticket for ${t.department_name}.`,
@@ -68,7 +71,7 @@ function ticketUpdated(before, actorId) {
 
   // Status change -> the person who raised the ticket
   if (t.status !== before.status) {
-    send([creator], actorId, subjectFor(t, `Status: ${label(t.status)}`), user => ({
+    send([creator], actorId, t, user => ({
       greeting: `Hi ${user.first_name},`,
       lines: [
         `${actor.name} changed the status of your ticket from ${label(before.status)} to ${label(t.status)}.`,
@@ -80,7 +83,7 @@ function ticketUpdated(before, actorId) {
 
   // Moved department -> the new department's agents
   if (t.department_id !== before.department_id) {
-    send(departmentRecipients(t.department_id), actorId, subjectFor(t, `Moved to ${t.department_name}`), user => ({
+    send(departmentRecipients(t.department_id), actorId, t, user => ({
       greeting: `Hi ${user.first_name},`,
       lines: [`${actor.name} moved this ticket to ${t.department_name}.`, ...ticketDetails(t)],
       quote: t.description || undefined,
@@ -90,7 +93,7 @@ function ticketUpdated(before, actorId) {
 
   // Newly assigned -> the assignee
   if (t.assigned_to && t.assigned_to !== before.assigned_to) {
-    send([getUser(t.assigned_to)], actorId, subjectFor(t, 'Assigned to you'), user => ({
+    send([getUser(t.assigned_to)], actorId, t, user => ({
       greeting: `Hi ${user.first_name},`,
       lines: [`${actor.name} assigned this ticket to you.`, ...ticketDetails(t), `Priority: ${label(t.priority)}`],
       quote: t.description || undefined,
@@ -142,7 +145,7 @@ function commentAdded(ticketId, actorId, body, commentId) {
 
   const details = fullTicketDetails(t);
   const history = earlierComments(t.id, commentId);
-  send(recipients, actorId, subjectFor(t, 'New reply'), user => ({
+  send(recipients, actorId, t, user => ({
     greeting: `Hi ${user.first_name},`,
     lines: [`${actor.name} replied on ticket #${t.id}:`],
     quote: body,

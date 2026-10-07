@@ -174,7 +174,8 @@ body { padding-bottom: 36px; }
 .page.active { display: block; }
 
 .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-.auth-card { max-width: 420px; margin: 80px auto; display: none; }
+.login-logo { display: block; width: min(360px, calc(100% - 32px)); height: auto; margin: 64px auto 0; }
+.auth-card { max-width: 420px; margin: 24px auto 80px; display: none; }
 .auth-card.active { display: block; }
 .auth-card h1 { font-size: 22px; }
 .auth-links { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; font-size: 14px; }

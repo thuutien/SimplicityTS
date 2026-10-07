@@ -720,6 +720,28 @@ app.post('/api/settings/departments', requireAuth, requireAdmin, (req, res) => {
   res.status(201).json({ id: lastInsertRowid, name });
 });
 
+// ----- Branding: app title (shown on the login page, so no login needed to read it) -----
+
+const DEFAULT_APP_TITLE = 'Ticket System';
+const getAppTitle = () => db.prepare("SELECT value FROM settings WHERE key = 'app.title'").get()?.value || DEFAULT_APP_TITLE;
+
+app.get('/api/branding', (req, res) => res.json({ title: getAppTitle() }));
+
+app.get('/api/settings/general', requireAuth, requireAdmin, (req, res) => {
+  res.json({ app_title: getAppTitle(), default_app_title: DEFAULT_APP_TITLE });
+});
+
+app.put('/api/settings/general', requireAuth, requireAdmin, (req, res) => {
+  const title = String(req.body.app_title || '').trim();
+  if (title.length > 60) return res.status(400).json({ error: 'The title can be at most 60 characters' });
+  if (title) {
+    db.prepare("INSERT INTO settings (key, value) VALUES ('app.title', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(title);
+  } else {
+    db.prepare("DELETE FROM settings WHERE key = 'app.title'").run(); // empty = back to the default
+  }
+  res.json({ app_title: getAppTitle() });
+});
+
 // ----- Settings: email (admin only) -----
 
 // Current email settings. The password is never sent back, only whether one is set.

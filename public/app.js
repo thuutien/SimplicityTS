@@ -968,6 +968,7 @@ $('#user-form').addEventListener('submit', async e => {
 // ---------- settings (admin) ----------
 
 async function loadSettings() {
+  loadGeneralSettings();
   loadEmailSettings();
   showNotice('#dept-notice', '');
   $('#dept-error').textContent = '';
@@ -1122,6 +1123,36 @@ $('#email-test-send').addEventListener('click', async () => {
     $('#email-test-send').textContent = 'Send test email';
   }
 });
+
+// ----- General settings: app title -----
+
+function applyAppTitle(title) {
+  document.querySelectorAll('[data-app-title]').forEach(el => (el.textContent = title));
+  document.title = title;
+}
+
+async function loadGeneralSettings() {
+  showNotice('#general-settings-notice', '');
+  $('#general-settings-error').textContent = '';
+  const s = await api('GET', '/api/settings/general');
+  $('#general-settings-form').elements.app_title.value = s.app_title === s.default_app_title ? '' : s.app_title;
+}
+
+$('#general-settings-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  showNotice('#general-settings-notice', '');
+  $('#general-settings-error').textContent = '';
+  try {
+    const { app_title } = await api('PUT', '/api/settings/general', { app_title: e.target.elements.app_title.value });
+    applyAppTitle(app_title);
+    showNotice('#general-settings-notice', `Saved. The app is now called "${app_title}".`);
+  } catch (err) {
+    $('#general-settings-error').textContent = err.message;
+  }
+});
+
+// The title is needed before login too, so load it straight away
+fetch('/api/branding').then(r => r.json()).then(({ title }) => applyAppTitle(title)).catch(() => {});
 
 // ---------- footer ----------
 

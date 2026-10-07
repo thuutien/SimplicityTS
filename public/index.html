@@ -9,9 +9,10 @@
 <body>
   <!-- Logged-out screens -->
   <section id="auth-view" class="hidden">
+    <img src="logo.png" alt="Master Distributor" class="login-logo">
     <!-- Login -->
     <form id="login-form" class="card auth-card" data-auth-card="login">
-      <h1>Ticket System</h1>
+      <h1 data-app-title>Ticket System</h1>
       <p class="notice hidden" id="login-notice"></p>
       <label>Email <input name="email" type="email" required autocomplete="username"></label>
       <label>Password <input name="password" type="password" required autocomplete="current-password"></label>
@@ -75,7 +76,7 @@
   <!-- App -->
   <section id="app-view" class="hidden">
     <header>
-      <h1>Ticket System</h1>
+      <h1 data-app-title>Ticket System</h1>
       <nav>
         <button data-nav="dashboard" class="staff-only">Dashboard</button>
         <button data-nav="tickets">Tickets</button>
@@ -265,6 +266,19 @@
       <!-- Settings (admin) -->
       <div id="settings-page" class="page">
         <h2>Settings</h2>
+        <details class="card settings-section" data-section="general">
+          <summary><h3>General</h3><span class="summary-hint">App title</span></summary>
+          <form id="general-settings-form" autocomplete="off">
+            <label>App title
+              <input name="app_title" maxlength="60" placeholder="Ticket System">
+            </label>
+            <p class="hint">Shown in the top bar, on the login page and in the browser tab. Leave empty to use "Ticket System".</p>
+            <div class="form-actions"><button type="submit">Save</button></div>
+            <p class="notice hidden" id="general-settings-notice"></p>
+            <p class="error" id="general-settings-error"></p>
+          </form>
+        </details>
+
         <details class="card settings-section" data-section="departments">
           <summary><h3>Departments</h3><span class="summary-hint">Add and rename departments</span></summary>
           <p class="muted">Tickets belong to a department, and agents work on their own department's tickets.

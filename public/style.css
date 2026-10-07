@@ -338,6 +338,8 @@ button.secondary:hover { background: var(--surface-3); }
 .date-filter input { width: auto; margin: 0; padding: 6px 8px; }
 .date-filter button { padding: 7px 12px; }
 .date-filter button:hover { background: var(--surface-3); }
+.date-filter button.active, .date-filter button.active:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.date-filter input.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .filters select { display: inline-block; width: auto; margin: 0; }
 .form-actions { display: flex; gap: 8px; }
 .row-actions { white-space: nowrap; text-align: right; }

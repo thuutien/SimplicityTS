@@ -667,7 +667,19 @@ setInterval(() => {
   if ($('#dashboard-page').classList.contains('active')) loadDashboard();
 }, 60 * 1000);
 
+// Highlights "Today" or "All dates" (or the date box, for any other day) to show which is in use
+function updateDateButtons() {
+  const day = $('#date-filter').value;
+  const today = localDateString(new Date());
+  $('#date-today').classList.toggle('active', day === today);
+  $('#date-all').classList.toggle('active', !day);
+  $('#date-filter').classList.toggle('active', !!day && day !== today);
+  $('#date-today').setAttribute('aria-pressed', String(day === today));
+  $('#date-all').setAttribute('aria-pressed', String(!day));
+}
+
 async function loadTickets() {
+  updateDateButtons();
   if (isStaff()) {
     loadSummary();
     loadActivity();

@@ -799,7 +799,7 @@ async function openTicket(id) {
       </div>`;
   } else {
     if (t.created_by === me.id && t.status !== 'closed') {
-      controls = `<div class="admin-controls"><button id="ctl-close" class="secondary">Close ticket</button></div>`;
+      controls = `<div class="admin-controls"><button id="ctl-close" class="warning">Close ticket</button></div>`;
     }
     if (isStaff()) {
       controls += `<p class="readonly-note">Read only: only ${esc(t.department_name || 'the assigned department')} agents can work on this ticket.</p>`;

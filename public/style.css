@@ -320,6 +320,9 @@ button.danger { background: var(--danger); border-color: var(--danger); }
 /* Green action (e.g. Claim ticket). #047857 keeps white text above 4.5:1 contrast. */
 button.success { background: #047857; border-color: #047857; color: #fff; }
 button.success:hover { background: #065f46; border-color: #065f46; }
+/* Orange action (e.g. an employee closing their own ticket). #c2410c keeps white text above 4.5:1 contrast. */
+button.warning { background: #c2410c; border-color: #c2410c; color: #fff; }
+button.warning:hover { background: #9a3412; border-color: #9a3412; }
 button.secondary { background: var(--surface); color: var(--text); border-color: var(--line-strong); }
 button.secondary:hover { background: var(--surface-3); }
 

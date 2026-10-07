@@ -736,7 +736,7 @@ async function openTicket(id) {
           </select>
         </label>
         ${isAdmin ? '<label>Assigned to <select id="ctl-assignee"></select></label>' : ''}
-        <button id="ctl-save">Save changes</button>
+        <span id="ctl-save-status" class="save-status" role="status" aria-live="polite"></span>
         ${canClaim || canRelease || isAdmin ? `
           <div class="ticket-actions">
             ${canClaim ? '<button id="ctl-claim" class="success">Claim ticket</button>' : ''}
@@ -796,18 +796,25 @@ async function openTicket(id) {
     $('#ctl-assignee').innerHTML = '<option value="">Unassigned</option>' + eligible.map(a =>
       `<option value="${a.id}" ${a.id === current ? 'selected' : ''}>${esc(a.name)} (${label(a.role)})</option>`).join('');
   };
-  if (t.can_work && isAdmin) {
-    fillAssignees();
-    $('#ctl-department').addEventListener('change', fillAssignees);
-  }
+  if (t.can_work && isAdmin) fillAssignees();
 
-  $('#ctl-save')?.addEventListener('click', () => updateTicket({
-    status: $('#ctl-status').value,
-    priority: $('#ctl-priority').value,
-    ...($('#ctl-department').value ? { department_id: Number($('#ctl-department').value) } : {}),
+  // Changing a dropdown saves that field right away (no Save button)
+  if (t.can_work) {
+    $('#ctl-status').addEventListener('change', e => autoSave({ status: e.target.value }));
+    $('#ctl-priority').addEventListener('change', e => autoSave({ priority: e.target.value }));
+    $('#ctl-department').addEventListener('change', e => {
+      if (e.target.value) autoSave({ department_id: Number(e.target.value) });
+    });
     // Only admins choose the assignee; agents use "Claim ticket"
-    ...(isAdmin ? { assigned_to: $('#ctl-assignee').value ? Number($('#ctl-assignee').value) : null } : {}),
-  }));
+    $('#ctl-assignee')?.addEventListener('change', e => autoSave({ assigned_to: e.target.value ? Number(e.target.value) : null }));
+  }
+  if (pendingSaveMessage) {
+    $('#ctl-save-status').textContent = pendingSaveMessage;
+    pendingSaveMessage = '';
+    setTimeout(() => {
+      if ($('#ctl-save-status')) $('#ctl-save-status').textContent = '';
+    }, 2500);
+  }
   $('#ctl-claim')?.addEventListener('click', () => updateTicket({ assigned_to: me.id }));
   $('#ctl-release')?.addEventListener('click', () => updateTicket({ assigned_to: null }));
   $('#ctl-close')?.addEventListener('click', () => updateTicket({ status: 'closed' }));
@@ -820,6 +827,23 @@ async function openTicket(id) {
       $('#detail-error').textContent = err.message;
     }
   });
+}
+
+// Saves one dropdown change, then reloads the ticket (status, assignee, buttons and emails all update).
+// On failure the ticket is reloaded so the dropdown shows the saved value again.
+let pendingSaveMessage = '';
+async function autoSave(changes) {
+  const controls = document.querySelectorAll('#ticket-detail .admin-controls select');
+  controls.forEach(el => (el.disabled = true));
+  $('#ctl-save-status').textContent = 'Saving…';
+  try {
+    await api('PATCH', `/api/tickets/${currentTicketId}`, changes);
+    pendingSaveMessage = '✓ Saved';
+    await openTicket(currentTicketId);
+  } catch (err) {
+    await openTicket(currentTicketId);
+    $('#detail-error').textContent = err.message;
+  }
 }
 
 async function updateTicket(changes) {

@@ -383,6 +383,7 @@ tbody tr.clickable:hover { background: var(--surface-3); }
 .info-callout .description { font-size: 16px; color: var(--text-strong); }
 .admin-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--line); }
 .admin-controls label { margin: 0; }
+.save-status { align-self: center; font-size: 13px; color: var(--notice-text); min-width: 70px; }
 /* Claim / Release and Delete sit in the same row as Save changes, set apart by a gap and a divider;
    Delete is pushed to the far right */
 .ticket-actions { display: flex; flex-wrap: wrap; gap: 12px; flex: 1; margin-left: 20px; padding-left: 20px; border-left: 1px solid var(--line); }

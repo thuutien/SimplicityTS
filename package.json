@@ -1,6 +1,6 @@
 {
   "name": "simplicityts",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Simple ticket system with employee, agent and admin roles",
   "main": "index.js",
   "scripts": {

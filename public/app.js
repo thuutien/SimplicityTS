@@ -35,6 +35,7 @@ const clearHash = () => history.replaceState(null, '', location.pathname);
 
 function showAuth(card) {
   me = null;
+  stopLiveUpdates();
   $('#app-view').classList.add('hidden');
   $('#auth-view').classList.remove('hidden');
   document.querySelectorAll('[data-auth-card]').forEach(el => el.classList.toggle('active', el.dataset.authCard === card));
@@ -121,6 +122,7 @@ $('#reset-form').addEventListener('submit', async e => {
 // ---------- app shell ----------
 
 async function showApp() {
+  startLiveUpdates();
   await refreshDepartments();
   resetTicketFilters();
   renderMe();
@@ -618,6 +620,43 @@ $('#dashboard-content').addEventListener('click', e => {
   if (row) openTicket(row.dataset.ticket);
 });
 
+// ----- Live updates -----
+// The server tells this browser when a ticket is created, updated or deleted (see events.js),
+// and the ticket list / dashboard on screen refresh straight away.
+let liveSource = null;
+const newTicketIds = new Set(); // briefly highlighted in the list
+let liveRefreshTimer = null;
+
+function startLiveUpdates() {
+  if (liveSource || !window.EventSource) return;
+  liveSource = new EventSource('/api/events');
+  liveSource.addEventListener('ticket', e => {
+    const { type, id } = JSON.parse(e.data);
+    if (type === 'created') {
+      newTicketIds.add(id);
+      setTimeout(() => {
+        newTicketIds.delete(id);
+        document.querySelector(`#ticket-rows tr[data-id="${id}"]`)?.classList.remove('new-row');
+      }, 8000);
+    }
+    // Several changes in a row (e.g. a status change and a reply) trigger one refresh
+    clearTimeout(liveRefreshTimer);
+    liveRefreshTimer = setTimeout(refreshVisibleLists, 400);
+  });
+}
+
+function stopLiveUpdates() {
+  liveSource?.close();
+  liveSource = null;
+}
+
+// Refreshes whatever list is on screen. An open ticket page is left alone so nobody loses what they are typing.
+function refreshVisibleLists() {
+  if (!me) return;
+  if ($('#tickets-page').classList.contains('active')) loadTickets();
+  if (isStaff() && $('#dashboard-page').classList.contains('active')) loadDashboard();
+}
+
 // Keep the panels and dashboard current while they are on screen
 setInterval(() => {
   if (!isStaff() || document.hidden) return;
@@ -647,7 +686,7 @@ async function loadTickets() {
   const tickets = await api('GET', '/api/tickets?' + query);
   const staff = isStaff();
   $('#ticket-rows').innerHTML = tickets.map(t => `
-    <tr class="clickable" data-id="${t.id}">
+    <tr class="clickable${newTicketIds.has(t.id) ? ' new-row' : ''}" data-id="${t.id}">
       <td>${t.id}</td>
       <td>${esc(t.title)}</td>
       <td>${esc(t.department_name) || '<span class="muted">None</span>'}</td>

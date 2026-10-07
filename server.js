@@ -16,6 +16,7 @@ const mailer = require('./mailer');
 const { queueEmail, startMailer, getAppUrl, getAppName } = mailer;
 const notify = require('./notify');
 const activity = require('./activity');
+const events = require('./events');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -237,6 +238,9 @@ app.post('/api/logout', (req, res) => {
 
 app.get('/api/me', requireAuth, (req, res) => res.json(req.user));
 
+// Live updates: the browser keeps this open and is told when tickets change (see events.js)
+app.get('/api/events', requireAuth, events.subscribe);
+
 // App version for the footer (no login needed). Bump "version" in package.json for each release.
 const { version: APP_VERSION } = require('./package.json');
 app.get('/api/version', (req, res) => res.json({ version: APP_VERSION }));
@@ -426,6 +430,7 @@ app.post('/api/tickets', requireAuth, (req, res) => {
   `).run(title, description, department.id, location, requestItem, req.user.id);
   notify.ticketCreated(lastInsertRowid, req.user.id);
   activity.ticketCreated(lastInsertRowid, req.user.id);
+  events.ticketChanged('created', { id: lastInsertRowid, created_by: req.user.id });
   res.status(201).json(db.prepare(`${TICKET_SELECT} WHERE t.id = ?`).get(lastInsertRowid));
 });
 
@@ -504,14 +509,16 @@ app.patch('/api/tickets/:id', requireAuth, (req, res) => {
     .run(...Object.values(updates), ticket.id);
   notify.ticketUpdated(ticket, req.user.id);
   activity.ticketUpdated(ticket, req.user.id);
+  events.ticketChanged('updated', ticket);
   res.json(db.prepare(`${TICKET_SELECT} WHERE t.id = ?`).get(ticket.id));
 });
 
 app.delete('/api/tickets/:id', requireAuth, requireAdmin, (req, res) => {
-  const ticket = db.prepare('SELECT id, title FROM tickets WHERE id = ?').get(req.params.id);
+  const ticket = db.prepare('SELECT id, title, created_by FROM tickets WHERE id = ?').get(req.params.id);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
   db.prepare('DELETE FROM tickets WHERE id = ?').run(ticket.id);
   activity.ticketDeleted(ticket, req.user.id);
+  events.ticketChanged('deleted', ticket);
   res.json({ ok: true });
 });
 
@@ -528,6 +535,7 @@ app.post('/api/tickets/:id/comments', requireAuth, (req, res) => {
   db.prepare("UPDATE tickets SET updated_at = datetime('now') WHERE id = ?").run(ticket.id);
   notify.commentAdded(ticket.id, req.user.id, body, commentId);
   activity.commentAdded(ticket, req.user.id, body);
+  events.ticketChanged('updated', ticket);
   res.status(201).json({ ok: true });
 });
 
@@ -1014,6 +1022,7 @@ app.delete('/api/users/:id', requireAuth, requireAdmin, (req, res) => {
     throw err;
   }
   destroyUserSessions(user.id);
+  events.disconnectUser(user.id);
   res.json({ ok: true });
 });
 

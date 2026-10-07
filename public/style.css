@@ -342,6 +342,9 @@ table { width: 100%; border-collapse: collapse; padding: 0; overflow: hidden; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 14px; }
 th { background: var(--surface-2); font-weight: 600; }
 tbody tr.clickable { cursor: pointer; }
+/* A ticket that just arrived through live updates */
+@keyframes new-row-flash { from { background: var(--tone-blue-bg); } to { background: transparent; } }
+tbody tr.new-row { animation: new-row-flash 8s ease-out; box-shadow: inset 4px 0 0 var(--st-open); }
 /* Users page: one table per role */
 .user-group h3 { font-size: 15px; margin: 20px 0 8px; display: flex; align-items: center; gap: 8px; }
 .user-group:first-child h3 { margin-top: 4px; }

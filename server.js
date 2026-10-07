@@ -13,7 +13,7 @@ const crypto = require('node:crypto');
 const { db, hashPassword, verifyPassword, getSetting } = require('./db');
 const { SqliteStore, destroyUserSessions } = require('./session-store');
 const mailer = require('./mailer');
-const { queueEmail, startMailer, getAppUrl, getAppName } = mailer;
+const { queueEmail, startMailer, getAppUrl, getAppTitle, DEFAULT_APP_TITLE } = mailer;
 const notify = require('./notify');
 const activity = require('./activity');
 const events = require('./events');
@@ -110,7 +110,7 @@ function consumeToken(token, types) {
 
 function sendVerificationEmail(user) {
   const token = createToken(user.id, 'verify_email', 24 * 60);
-  queueEmail(user.email, `Verify your email for ${getAppName()}`, {
+  queueEmail(user.email, `Verify your email for ${getAppTitle()}`, {
     greeting: `Hi ${user.first_name},`,
     lines: ['Thanks for signing up. Please confirm your email address to activate your account. This link expires in 24 hours.'],
     button: { label: 'Verify email', url: `${getAppUrl()}/#verify/${token}` },
@@ -120,7 +120,7 @@ function sendVerificationEmail(user) {
 
 function sendPasswordResetEmail(user, { requestedByAdmin = false } = {}) {
   const token = createToken(user.id, 'reset_password', 30);
-  queueEmail(user.email, `Reset your ${getAppName()} password`, {
+  queueEmail(user.email, `Reset your ${getAppTitle()} password`, {
     greeting: `Hi ${user.first_name},`,
     lines: [
       requestedByAdmin
@@ -134,7 +134,7 @@ function sendPasswordResetEmail(user, { requestedByAdmin = false } = {}) {
 }
 
 function sendPasswordChangedEmail(user) {
-  queueEmail(user.email, `Your ${getAppName()} password was changed`, {
+  queueEmail(user.email, `Your ${getAppTitle()} password was changed`, {
     greeting: `Hi ${user.first_name},`,
     lines: [
       'Your password was just changed, and you have been signed out on your other devices.',
@@ -265,7 +265,7 @@ app.post('/api/register', emailLimiter, (req, res) => {
     if (!existing.email_verified_at) {
       sendVerificationEmail(existing);
     } else {
-      queueEmail(existing.email, `You already have a ${getAppName()} account`, {
+      queueEmail(existing.email, `You already have a ${getAppTitle()} account`, {
         greeting: `Hi ${existing.first_name},`,
         lines: ['Someone tried to create an account with this email address, but you already have one.', 'If you forgot your password, you can reset it here:'],
         button: { label: 'Reset password', url: `${getAppUrl()}/#forgot` },
@@ -737,8 +737,6 @@ app.post('/api/settings/departments', requireAuth, requireAdmin, (req, res) => {
 
 // ----- Branding: app title (shown on the login page, so no login needed to read it) -----
 
-const DEFAULT_APP_TITLE = 'Ticket System';
-const getAppTitle = () => db.prepare("SELECT value FROM settings WHERE key = 'app.title'").get()?.value || DEFAULT_APP_TITLE;
 
 // Optional icon shown on the login page, stored in the settings table as a data URL.
 // SVG is not allowed: an SVG opened directly could run scripts on this site.
@@ -972,7 +970,7 @@ app.patch('/api/users/:id', requireAuth, requireAdmin, (req, res) => {
 
 // The email is also the login, so tell both the old and the new address when an admin changes it.
 function sendEmailChangedEmails(oldEmail, newEmail, firstName, adminName, passwordChanged) {
-  queueEmail(oldEmail, `Your ${getAppName()} email address was changed`, {
+  queueEmail(oldEmail, `Your ${getAppTitle()} email address was changed`, {
     greeting: `Hi ${firstName},`,
     lines: [
       `${adminName} (administrator) changed the email address on your account from ${oldEmail} to ${newEmail}.`,
@@ -980,7 +978,7 @@ function sendEmailChangedEmails(oldEmail, newEmail, firstName, adminName, passwo
       "If you didn't expect this change, contact an administrator.",
     ],
   });
-  queueEmail(newEmail, `Your ${getAppName()} account now uses this email`, {
+  queueEmail(newEmail, `Your ${getAppTitle()} account now uses this email`, {
     greeting: `Hi ${firstName},`,
     lines: [
       `${adminName} (administrator) changed the email address on your account to ${newEmail} (previously ${oldEmail}).`,

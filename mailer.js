@@ -33,7 +33,11 @@ function getEmailConfig() {
 }
 
 const getAppUrl = () => getEmailConfig().values.app_url;
-const getAppName = () => getEmailConfig().values.app_name;
+const getAppName = () => getEmailConfig().values.app_name; // sender name shown in the inbox "From" column
+
+// App title (Settings > General): used for the app's name inside emails
+const DEFAULT_APP_TITLE = 'Ticket System';
+const getAppTitle = () => db.prepare("SELECT value FROM settings WHERE key = 'app.title'").get()?.value || DEFAULT_APP_TITLE;
 
 // The mail server connection is rebuilt whenever the settings change.
 let cached = { key: null, transport: null };
@@ -71,7 +75,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 // details: optional { title, rows: [[label, value], ...] } table, e.g. the ticket's details.
 // history: optional { title, items: [{ who, when, body }] }, e.g. earlier comments.
 function render({ greeting, lines = [], quote, button, details, history, footer }) {
-  const APP_NAME = getAppName();
+  const APP_NAME = getAppTitle();
   const quoteText = q => q.split('\n').map(l => `> ${l}`).join('\n');
   const text = [
     greeting,
@@ -193,10 +197,10 @@ async function sendTestEmail(to) {
   await transport.verify();
   const { text, html } = render({
     greeting: 'Hello,',
-    lines: [`This is a test email from ${values.app_name}. If you can read this, email is set up correctly.`],
+    lines: [`This is a test email from ${getAppTitle()}. If you can read this, email is set up correctly.`],
     button: { label: 'Open the app', url: values.app_url },
   });
-  await transport.sendMail({ from: fromAddress(values), to, subject: `Test email from ${values.app_name}`, text, html });
+  await transport.sendMail({ from: fromAddress(values), to, subject: `Test email from ${getAppTitle()}`, text, html });
 }
 
 // Retry anything left pending (e.g. mail server was down) every minute.
@@ -206,4 +210,4 @@ function startMailer() {
   setInterval(processOutbox, 60 * 1000).unref();
 }
 
-module.exports = { queueEmail, startMailer, checkConnection, sendTestEmail, getEmailConfig, getAppUrl, getAppName, EMAIL_SETTINGS };
+module.exports = { queueEmail, startMailer, checkConnection, sendTestEmail, getEmailConfig, getAppUrl, getAppName, getAppTitle, DEFAULT_APP_TITLE, EMAIL_SETTINGS };

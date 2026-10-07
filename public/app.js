@@ -122,6 +122,7 @@ $('#reset-form').addEventListener('submit', async e => {
 
 async function showApp() {
   await refreshDepartments();
+  resetTicketFilters();
   renderMe();
   $('#auth-view').classList.add('hidden');
   $('#app-view').classList.remove('hidden');
@@ -229,7 +230,9 @@ function navigate(page) {
 
 document.addEventListener('click', e => {
   const nav = e.target.closest('[data-nav]');
-  if (nav) navigate(nav.dataset.nav);
+  if (!nav) return;
+  if (nav.dataset.nav === 'tickets' && !nav.hasAttribute('data-keep-filters')) resetTicketFilters();
+  navigate(nav.dataset.nav);
 });
 
 $('#logout').addEventListener('click', async () => {
@@ -240,6 +243,17 @@ $('#logout').addEventListener('click', async () => {
 // ---------- tickets ----------
 
 let ticketState = 'open'; // Open / Closed buttons
+
+// Default ticket list filters: Open, all dates, all departments, anyone, all open statuses
+function resetTicketFilters() {
+  ticketState = 'open';
+  document.querySelectorAll('.segmented [data-state]').forEach(b => b.classList.toggle('active', b.dataset.state === 'open'));
+  $('#date-filter').value = '';
+  $('#department-filter').value = '';
+  $('#assigned-filter').value = '';
+  $('#status-filter').value = '';
+  $('#status-filter').classList.remove('hidden');
+}
 
 // Local date as YYYY-MM-DD (for the date picker)
 const localDateString = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

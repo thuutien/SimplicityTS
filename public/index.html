@@ -138,7 +138,7 @@
               <button type="button" data-state="closed">Closed</button>
             </div>
             <div class="date-filter">
-              <input type="date" id="date-filter" aria-label="Created on">
+              <input type="date" id="date-filter" aria-label="Created on" autocomplete="off">
               <button type="button" id="date-today" class="secondary">Today</button>
               <button type="button" id="date-all" class="secondary">All dates</button>
             </div>
@@ -147,15 +147,15 @@
         <div class="toolbar">
           <span></span>
           <div class="filters">
-            <select id="department-filter" class="department-select">
+            <select id="department-filter" class="department-select" autocomplete="off">
               <option value="">All departments</option>
             </select>
-            <select id="assigned-filter" class="staff-only">
+            <select id="assigned-filter" class="staff-only" autocomplete="off">
               <option value="">Anyone</option>
               <option value="me">Assigned to me</option>
               <option value="none">Unassigned</option>
             </select>
-            <select id="status-filter">
+            <select id="status-filter" autocomplete="off">
               <option value="">All open statuses</option>
               <option value="open">Open</option>
               <option value="in_progress">In progress</option>
@@ -229,7 +229,7 @@
 
       <!-- Ticket detail -->
       <div id="detail-page" class="page">
-        <button class="link" data-nav="tickets">&larr; Back to tickets</button>
+        <button class="link" data-nav="tickets" data-keep-filters>&larr; Back to tickets</button>
         <div id="ticket-detail" class="card"></div>
         <div class="card">
           <h3>Comments</h3>

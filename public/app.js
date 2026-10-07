@@ -299,11 +299,11 @@ function activityQuery(dateInput, searchInput, extra) {
   return new URLSearchParams({ ...dayRangeParams($(dateInput).value), q: $(searchInput).value.trim(), ...extra });
 }
 
-// Side panel: the 15 latest
+// Side panel: the 20 latest
 async function loadActivity() {
   let data;
   try {
-    data = await api('GET', '/api/activity?' + activityQuery('#activity-date', '#activity-search', { limit: 15 }));
+    data = await api('GET', '/api/activity?' + activityQuery('#activity-date', '#activity-search', { limit: 20 }));
   } catch {
     return;
   }

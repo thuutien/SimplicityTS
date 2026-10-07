@@ -185,6 +185,9 @@ button {
 button:hover { background: #1d4ed8; }
 button.link { background: none; border: none; color: #2563eb; padding: 4px 0; }
 button.danger { background: #dc2626; border-color: #dc2626; }
+/* Green action (e.g. Claim ticket). #047857 keeps white text above 4.5:1 contrast. */
+button.success { background: #047857; border-color: #047857; color: #fff; }
+button.success:hover { background: #065f46; border-color: #065f46; }
 button.secondary { background: #fff; color: #1f2328; border-color: #d1d5db; }
 
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }

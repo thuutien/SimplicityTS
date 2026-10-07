@@ -669,7 +669,7 @@ async function openTicket(id) {
         </label>
         ${isAdmin ? '<label>Assigned to <select id="ctl-assignee"></select></label>' : ''}
         <button id="ctl-save">Save changes</button>
-        ${canClaim ? '<button id="ctl-claim" class="secondary">Claim ticket</button>' : ''}
+        ${canClaim ? '<button id="ctl-claim" class="success">Claim ticket</button>' : ''}
         ${isAdmin ? '<button id="ctl-delete" class="danger">Delete ticket</button>' : ''}
       </div>`;
   } else {

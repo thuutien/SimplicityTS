@@ -237,8 +237,9 @@ tbody tr.clickable:hover { background: #f3f4f6; }
 .info-callout .description { font-size: 16px; color: #111827; }
 .admin-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding-top: 12px; margin-top: 12px; border-top: 1px solid #e5e7eb; }
 .admin-controls label { margin: 0; }
-/* Claim / Release on the left, Delete pushed to the far right */
-.ticket-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+/* Claim / Release and Delete sit in the same row as Save changes, set apart by a gap and a divider;
+   Delete is pushed to the far right */
+.ticket-actions { display: flex; flex-wrap: wrap; gap: 12px; flex: 1; margin-left: 20px; padding-left: 20px; border-left: 1px solid #e5e7eb; }
 .ticket-actions #ctl-delete { margin-left: auto; }
 
 .comment { padding: 10px 0; border-bottom: 1px solid #f3f4f6; }

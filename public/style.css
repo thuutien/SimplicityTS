@@ -231,6 +231,10 @@ tbody tr.clickable:hover { background: #f3f4f6; }
 
 .meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: 14px; color: #4b5563; margin-bottom: 12px; }
 .description { white-space: pre-wrap; line-height: 1.5; }
+/* Highlighted box for the ticket's Additional info / Issue description */
+.info-callout { background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; border-radius: 6px; padding: 12px 14px; margin: 4px 0 8px; }
+.info-callout-label { font-size: 12px; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.info-callout .description { font-size: 16px; color: #111827; }
 .admin-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding-top: 12px; margin-top: 12px; border-top: 1px solid #e5e7eb; }
 .admin-controls label { margin: 0; }
 /* Claim / Release on the left, Delete pushed to the far right */

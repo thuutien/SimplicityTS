@@ -704,8 +704,10 @@ async function openTicket(id) {
         ${t.location ? `<div><span class="muted">Location</span><strong>${esc(t.location)}</strong></div>` : ''}
       </div>` : ''}
     ${t.description ? `
-      ${t.location ? `<div class="muted field-label">${t.request_item ? 'Additional info' : 'Issue description'}</div>` : ''}
-      <div class="description">${esc(t.description)}</div>` : ''}
+      <div class="info-callout">
+        ${t.location ? `<div class="info-callout-label">${t.request_item ? 'Additional info' : 'Issue description'}</div>` : ''}
+        <div class="description">${esc(t.description)}</div>
+      </div>` : ''}
     ${controls}
     <p class="error" id="detail-error"></p>`;
 

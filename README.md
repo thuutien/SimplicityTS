@@ -69,8 +69,10 @@ log in, their tickets and comments stay (shown as "Name (deleted)"), and their e
 
 ## Email
 
-Copy `.env.example` to `.env` and fill in your SMTP details (see the comments in that file for Gmail).
-Restart the server after changing it. Without SMTP settings, emails are printed to the server console.
+Admins can set up email under **Settings > Email**: the mail server (SMTP), username, password, sender name,
+from address and the app address used in email links, plus a **Send test email** button. Changes take effect
+immediately, no restart needed. Values saved there override `.env`; empty fields fall back to `.env`
+(see `.env.example`). Without a mail server, emails are printed to the server console.
 
 | Event | Who gets an email |
 |---|---|

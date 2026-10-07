@@ -1,7 +1,7 @@
 const { db } = require('./db');
-const { queueEmail, APP_URL } = require('./mailer');
+const { queueEmail, getAppUrl } = require('./mailer');
 
-const ticketUrl = id => `${APP_URL}/#ticket/${id}`;
+const ticketUrl = id => `${getAppUrl()}/#ticket/${id}`;
 const label = s => String(s).replace('_', ' ').replace(/^./, c => c.toUpperCase());
 
 const getUser = id => id && db.prepare('SELECT id, first_name, name, email FROM users WHERE id = ? AND deleted_at IS NULL').get(id);

@@ -280,6 +280,50 @@
           <p class="notice hidden" id="dept-notice"></p>
           <p class="error" id="dept-error"></p>
         </div>
+
+        <form id="email-settings-form" class="card" autocomplete="off">
+          <h3>Email</h3>
+          <p class="muted">How the app sends emails (ticket alerts, password resets, sign-up links).
+            Fields marked <span class="src-tag">from .env</span> are using the value in the server's .env file;
+            saving a value here overrides it, and clearing a field goes back to .env.</p>
+
+          <h4>Links and sender</h4>
+          <label>App address for email links <span class="src" data-src="app_url"></span>
+            <input name="app_url" placeholder="http://192.168.1.50:5000">
+          </label>
+          <p class="hint">The address people type to open the app. Buttons in emails link here.</p>
+          <div class="row">
+            <label>Sender name <span class="src" data-src="app_name"></span><input name="app_name" maxlength="80" placeholder="Retail King Helpdesk"></label>
+            <label>From address <span class="src" data-src="mail_from"></span><input name="mail_from" type="email" placeholder="Same as the username"></label>
+          </div>
+
+          <h4>Mail server (SMTP)</h4>
+          <div class="row">
+            <label class="grow">Server <span class="src" data-src="smtp_host"></span><input name="smtp_host" placeholder="smtp.gmail.com"></label>
+            <label class="narrow">Port <span class="src" data-src="smtp_port"></span><input name="smtp_port" inputmode="numeric" placeholder="465"></label>
+          </div>
+          <label class="checkbox"><input type="checkbox" name="smtp_secure"> Use SSL/TLS (turn on for port 465, off for 587)</label>
+          <div class="row">
+            <label>Username <span class="src" data-src="smtp_user"></span><input name="smtp_user" autocomplete="off" placeholder="your.mailbox@gmail.com"></label>
+            <label>Password <span class="src" data-src="smtp_pass"></span><input name="smtp_pass" type="password" autocomplete="new-password"></label>
+          </div>
+          <p class="hint">For Gmail use an App Password (Google account &gt; Security &gt; 2-Step Verification &gt; App passwords), not your normal password.
+            Leave the password blank to keep the current one.</p>
+
+          <div class="form-actions">
+            <button type="submit">Save email settings</button>
+          </div>
+          <p class="notice hidden" id="email-settings-notice"></p>
+          <p class="error" id="email-settings-error"></p>
+
+          <h4>Send a test email</h4>
+          <div class="inline-form" style="margin-top: 0;">
+            <input type="email" id="email-test-to" placeholder="Send to..." aria-label="Send test email to">
+            <button type="button" id="email-test-send" class="secondary">Send test email</button>
+          </div>
+          <p class="notice hidden" id="email-test-notice"></p>
+          <p class="error" id="email-test-error"></p>
+        </form>
       </div>
 
       <!-- Users (admin) -->

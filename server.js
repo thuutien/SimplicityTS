@@ -12,7 +12,8 @@ const session = require('express-session');
 const crypto = require('node:crypto');
 const { db, hashPassword, verifyPassword, getSetting } = require('./db');
 const { SqliteStore, destroyUserSessions } = require('./session-store');
-const { queueEmail, startMailer, APP_URL, APP_NAME } = require('./mailer');
+const mailer = require('./mailer');
+const { queueEmail, startMailer, getAppUrl, getAppName } = mailer;
 const notify = require('./notify');
 const activity = require('./activity');
 
@@ -108,17 +109,17 @@ function consumeToken(token, types) {
 
 function sendVerificationEmail(user) {
   const token = createToken(user.id, 'verify_email', 24 * 60);
-  queueEmail(user.email, `Verify your email for ${APP_NAME}`, {
+  queueEmail(user.email, `Verify your email for ${getAppName()}`, {
     greeting: `Hi ${user.first_name},`,
     lines: ['Thanks for signing up. Please confirm your email address to activate your account. This link expires in 24 hours.'],
-    button: { label: 'Verify email', url: `${APP_URL}/#verify/${token}` },
+    button: { label: 'Verify email', url: `${getAppUrl()}/#verify/${token}` },
     footer: "If you didn't create this account, you can ignore this email.",
   });
 }
 
 function sendPasswordResetEmail(user, { requestedByAdmin = false } = {}) {
   const token = createToken(user.id, 'reset_password', 30);
-  queueEmail(user.email, `Reset your ${APP_NAME} password`, {
+  queueEmail(user.email, `Reset your ${getAppName()} password`, {
     greeting: `Hi ${user.first_name},`,
     lines: [
       requestedByAdmin
@@ -126,19 +127,19 @@ function sendPasswordResetEmail(user, { requestedByAdmin = false } = {}) {
         : 'We received a request to reset your password.',
       'Click the button below to choose a new password. This link expires in 30 minutes and can only be used once.',
     ],
-    button: { label: 'Reset password', url: `${APP_URL}/#reset/${token}` },
+    button: { label: 'Reset password', url: `${getAppUrl()}/#reset/${token}` },
     footer: "If you didn't ask for this, you can ignore this email. Your password won't change.",
   });
 }
 
 function sendPasswordChangedEmail(user) {
-  queueEmail(user.email, `Your ${APP_NAME} password was changed`, {
+  queueEmail(user.email, `Your ${getAppName()} password was changed`, {
     greeting: `Hi ${user.first_name},`,
     lines: [
       'Your password was just changed, and you have been signed out on your other devices.',
       "If you didn't do this, reset your password right away and contact an administrator.",
     ],
-    button: { label: 'Reset password', url: `${APP_URL}/#forgot` },
+    button: { label: 'Reset password', url: `${getAppUrl()}/#forgot` },
   });
 }
 
@@ -260,10 +261,10 @@ app.post('/api/register', emailLimiter, (req, res) => {
     if (!existing.email_verified_at) {
       sendVerificationEmail(existing);
     } else {
-      queueEmail(existing.email, `You already have a ${APP_NAME} account`, {
+      queueEmail(existing.email, `You already have a ${getAppName()} account`, {
         greeting: `Hi ${existing.first_name},`,
         lines: ['Someone tried to create an account with this email address, but you already have one.', 'If you forgot your password, you can reset it here:'],
-        button: { label: 'Reset password', url: `${APP_URL}/#forgot` },
+        button: { label: 'Reset password', url: `${getAppUrl()}/#forgot` },
       });
     }
     return done();
@@ -719,6 +720,71 @@ app.post('/api/settings/departments', requireAuth, requireAdmin, (req, res) => {
   res.status(201).json({ id: lastInsertRowid, name });
 });
 
+// ----- Settings: email (admin only) -----
+
+// Current email settings. The password is never sent back, only whether one is set.
+function emailSettingsResponse() {
+  const { values, sources } = mailer.getEmailConfig();
+  const { smtp_pass, ...rest } = values;
+  return { ...rest, smtp_secure: String(values.smtp_secure) === 'true', password_set: !!smtp_pass, sources };
+}
+
+app.get('/api/settings/email', requireAuth, requireAdmin, (req, res) => res.json(emailSettingsResponse()));
+
+// Saves email settings. An empty field falls back to .env; a blank password keeps the current one.
+app.put('/api/settings/email', requireAuth, requireAdmin, async (req, res) => {
+  const b = req.body;
+  const clean = v => String(v ?? '').trim();
+  const updates = {
+    app_url: clean(b.app_url).replace(/\/+$/, ''),
+    app_name: clean(b.app_name).slice(0, 80),
+    mail_from: clean(b.mail_from).toLowerCase(),
+    smtp_host: clean(b.smtp_host),
+    smtp_port: clean(b.smtp_port),
+    smtp_secure: b.smtp_secure ? 'true' : 'false',
+    smtp_user: clean(b.smtp_user),
+  };
+  if (updates.app_url && !/^https?:\/\/[^\s/]+/i.test(updates.app_url)) {
+    return res.status(400).json({ error: 'The app address must start with http:// or https://, for example http://192.168.1.50:5000' });
+  }
+  if (updates.smtp_port && !(Number(updates.smtp_port) >= 1 && Number(updates.smtp_port) <= 65535)) {
+    return res.status(400).json({ error: 'The port must be a number between 1 and 65535' });
+  }
+  if (updates.mail_from && !isValidEmail(updates.mail_from)) {
+    return res.status(400).json({ error: 'The "from" address is not a valid email address' });
+  }
+
+  const set = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
+  const remove = db.prepare('DELETE FROM settings WHERE key = ?');
+  db.exec('BEGIN');
+  try {
+    for (const [name, value] of Object.entries(updates)) {
+      if (value) set.run(`email.${name}`, value);
+      else remove.run(`email.${name}`);
+    }
+    if (b.smtp_pass) set.run('email.smtp_pass', String(b.smtp_pass));
+    if (b.clear_password) remove.run('email.smtp_pass');
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+
+  const connection = await mailer.checkConnection();
+  res.json({ ...emailSettingsResponse(), connection });
+});
+
+app.post('/api/settings/email/test', requireAuth, requireAdmin, emailLimiter, async (req, res) => {
+  const to = normalizeEmail(req.body.to || req.user.email);
+  if (!isValidEmail(to)) return res.status(400).json({ error: 'Please enter a valid email address to send the test to' });
+  try {
+    await mailer.sendTestEmail(to);
+    res.json({ ok: true, message: `Test email sent to ${to}. Check that inbox (and the spam folder).` });
+  } catch (err) {
+    res.status(400).json({ error: `Could not send: ${err.message}` });
+  }
+});
+
 app.patch('/api/settings/departments/:id', requireAuth, requireAdmin, (req, res) => {
   const department = db.prepare('SELECT * FROM departments WHERE id = ?').get(req.params.id);
   if (!department) return res.status(404).json({ error: 'Department not found' });
@@ -827,7 +893,7 @@ app.patch('/api/users/:id', requireAuth, requireAdmin, (req, res) => {
 
 // The email is also the login, so tell both the old and the new address when an admin changes it.
 function sendEmailChangedEmails(oldEmail, newEmail, firstName, adminName, passwordChanged) {
-  queueEmail(oldEmail, `Your ${APP_NAME} email address was changed`, {
+  queueEmail(oldEmail, `Your ${getAppName()} email address was changed`, {
     greeting: `Hi ${firstName},`,
     lines: [
       `${adminName} (administrator) changed the email address on your account from ${oldEmail} to ${newEmail}.`,
@@ -835,7 +901,7 @@ function sendEmailChangedEmails(oldEmail, newEmail, firstName, adminName, passwo
       "If you didn't expect this change, contact an administrator.",
     ],
   });
-  queueEmail(newEmail, `Your ${APP_NAME} account now uses this email`, {
+  queueEmail(newEmail, `Your ${getAppName()} account now uses this email`, {
     greeting: `Hi ${firstName},`,
     lines: [
       `${adminName} (administrator) changed the email address on your account to ${newEmail} (previously ${oldEmail}).`,
@@ -843,7 +909,7 @@ function sendEmailChangedEmails(oldEmail, newEmail, firstName, adminName, passwo
         ? 'Use this address to log in from now on. Your password was also changed; ask your administrator for it, or use "Forgot password" on the login page.'
         : 'Use this address to log in from now on. Your password has not changed.',
     ],
-    button: { label: 'Log in', url: APP_URL },
+    button: { label: 'Log in', url: getAppUrl() },
   });
 }
 
@@ -883,6 +949,6 @@ app.delete('/api/users/:id', requireAuth, requireAdmin, (req, res) => {
 db.prepare("UPDATE tokens SET used_at = datetime('now') WHERE type = 'change_email' AND used_at IS NULL").run();
 
 app.listen(PORT, () => {
-  console.log(`Ticket system running at http://localhost:${PORT} (links in emails use ${APP_URL})`);
+  console.log(`Ticket system running at http://localhost:${PORT} (links in emails use ${getAppUrl()})`);
   startMailer();
 });

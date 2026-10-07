@@ -954,6 +954,7 @@ $('#user-form').addEventListener('submit', async e => {
 // ---------- settings (admin) ----------
 
 async function loadSettings() {
+  loadEmailSettings();
   showNotice('#dept-notice', '');
   $('#dept-error').textContent = '';
   const rows = await api('GET', '/api/settings/departments');
@@ -1016,6 +1017,71 @@ $('#dept-add-form').addEventListener('submit', async e => {
   } catch (err) {
     showNotice('#dept-notice', '');
     $('#dept-error').textContent = err.message;
+  }
+});
+
+// ----- Email settings -----
+
+async function loadEmailSettings() {
+  for (const id of ['email-settings', 'email-test']) {
+    showNotice(`#${id}-notice`, '');
+    $(`#${id}-error`).textContent = '';
+  }
+  const s = await api('GET', '/api/settings/email');
+  const form = $('#email-settings-form');
+  for (const name of ['app_url', 'app_name', 'mail_from', 'smtp_host', 'smtp_port', 'smtp_user']) {
+    // Show the value only if it was saved here; .env values show as the placeholder
+    form.elements[name].value = s.sources[name] === 'settings' ? s[name] : '';
+    if (s.sources[name] !== 'settings' && s[name]) form.elements[name].placeholder = s[name];
+  }
+  form.elements.smtp_secure.checked = s.smtp_secure;
+  form.elements.smtp_pass.value = '';
+  form.elements.smtp_pass.placeholder = s.password_set ? '•••••••• (saved, leave blank to keep)' : 'Not set';
+  document.querySelectorAll('#email-settings-form [data-src]').forEach(el => {
+    el.className = 'src';
+    el.textContent = '';
+    if (s.sources[el.dataset.src] === 'env') {
+      el.textContent = 'from .env';
+      el.classList.add('src-tag');
+    }
+  });
+  if (!$('#email-test-to').value) $('#email-test-to').value = me.email;
+}
+
+$('#email-settings-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  showNotice('#email-settings-notice', '');
+  $('#email-settings-error').textContent = '';
+  const form = e.target;
+  const body = Object.fromEntries(['app_url', 'app_name', 'mail_from', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass']
+    .map(n => [n, form.elements[n].value]));
+  body.smtp_secure = form.elements.smtp_secure.checked;
+  // Keep .env values for fields left empty (shown as placeholders)
+  try {
+    const result = await api('PUT', '/api/settings/email', body);
+    await loadEmailSettings();
+    const c = result.connection;
+    if (!c.configured) showNotice('#email-settings-notice', 'Saved. Email is not set up yet: emails will be printed in the server log until a server, username and password are entered.');
+    else if (c.ok) showNotice('#email-settings-notice', `Saved. Connected to ${result.smtp_host} successfully.`);
+    else $('#email-settings-error').textContent = `Saved, but the app could not connect to the mail server: ${c.error}`;
+  } catch (err) {
+    $('#email-settings-error').textContent = err.message;
+  }
+});
+
+$('#email-test-send').addEventListener('click', async () => {
+  showNotice('#email-test-notice', '');
+  $('#email-test-error').textContent = '';
+  $('#email-test-send').disabled = true;
+  $('#email-test-send').textContent = 'Sending...';
+  try {
+    const { message } = await api('POST', '/api/settings/email/test', { to: $('#email-test-to').value });
+    showNotice('#email-test-notice', message);
+  } catch (err) {
+    $('#email-test-error').textContent = err.message;
+  } finally {
+    $('#email-test-send').disabled = false;
+    $('#email-test-send').textContent = 'Send test email';
   }
 });
 

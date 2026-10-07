@@ -29,7 +29,7 @@ const MIN_PASSWORD_LENGTH = 8;
 const REMEMBER_DAYS = Number(process.env.REMEMBER_DAYS || 90);
 
 app.set('trust proxy', 'loopback');
-app.use(express.json());
+app.use(express.json({ limit: '1mb' })); // room for an uploaded icon
 app.use(session({
   store: new SqliteStore(),
   // Kept in the database so logins survive restarts, unless set explicitly in .env
@@ -725,10 +725,42 @@ app.post('/api/settings/departments', requireAuth, requireAdmin, (req, res) => {
 const DEFAULT_APP_TITLE = 'Ticket System';
 const getAppTitle = () => db.prepare("SELECT value FROM settings WHERE key = 'app.title'").get()?.value || DEFAULT_APP_TITLE;
 
-app.get('/api/branding', (req, res) => res.json({ title: getAppTitle() }));
+// Optional icon shown on the login page, stored in the settings table as a data URL.
+// SVG is not allowed: an SVG opened directly could run scripts on this site.
+const ICON_PATTERN = /^data:(image\/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/]+={0,2})$/;
+const MAX_ICON_BYTES = 500 * 1024;
+const readSetting = key => db.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value;
+// The version changes on every upload, so browsers fetch the new image instead of a cached one.
+const getIconVersion = () => (readSetting('app.icon') ? readSetting('app.icon_version') || '1' : null);
+
+app.get('/api/branding', (req, res) => res.json({ title: getAppTitle(), icon_version: getIconVersion() }));
+
+app.get('/api/branding/icon', (req, res) => {
+  const match = ICON_PATTERN.exec(readSetting('app.icon') || '');
+  if (!match) return res.status(404).end();
+  res.set({ 'Content-Type': match[1], 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'public, max-age=31536000' });
+  res.send(Buffer.from(match[2], 'base64'));
+});
 
 app.get('/api/settings/general', requireAuth, requireAdmin, (req, res) => {
-  res.json({ app_title: getAppTitle(), default_app_title: DEFAULT_APP_TITLE });
+  res.json({ app_title: getAppTitle(), default_app_title: DEFAULT_APP_TITLE, icon_version: getIconVersion() });
+});
+
+// Upload (icon = data URL) or remove (icon = null) the login page icon.
+app.put('/api/settings/general/icon', requireAuth, requireAdmin, (req, res) => {
+  if (req.body.icon === null) {
+    db.prepare("DELETE FROM settings WHERE key IN ('app.icon', 'app.icon_version')").run();
+    return res.json({ icon_version: null });
+  }
+  const match = ICON_PATTERN.exec(String(req.body.icon || ''));
+  if (!match) return res.status(400).json({ error: 'Please choose a PNG, JPG, GIF or WebP image' });
+  if (Buffer.from(match[2], 'base64').length > MAX_ICON_BYTES) {
+    return res.status(400).json({ error: 'The image is too large. Please use one under 500 KB.' });
+  }
+  const upsert = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
+  upsert.run('app.icon', req.body.icon);
+  upsert.run('app.icon_version', String(Date.now()));
+  res.json({ icon_version: getIconVersion() });
 });
 
 app.put('/api/settings/general', requireAuth, requireAdmin, (req, res) => {

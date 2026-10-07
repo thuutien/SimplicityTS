@@ -1131,11 +1131,60 @@ function applyAppTitle(title) {
   document.title = title;
 }
 
+// Login page icon; iconVersion is null when no icon is set
+const iconUrl = iconVersion => `/api/branding/icon?v=${encodeURIComponent(iconVersion)}`;
+function applyIcon(iconVersion) {
+  const img = $('#login-icon');
+  img.classList.toggle('hidden', !iconVersion);
+  if (iconVersion) img.src = iconUrl(iconVersion);
+  else img.removeAttribute('src');
+}
+
+function renderIconSetting(iconVersion) {
+  $('#icon-preview').innerHTML = iconVersion
+    ? `<img src="${iconUrl(iconVersion)}" alt="Current icon">`
+    : '<span class="muted">No icon</span>';
+  $('#icon-remove').classList.toggle('hidden', !iconVersion);
+}
+
+async function saveIcon(icon, message) {
+  showNotice('#icon-notice', '');
+  $('#icon-error').textContent = '';
+  try {
+    const { icon_version } = await api('PUT', '/api/settings/general/icon', { icon });
+    renderIconSetting(icon_version);
+    applyIcon(icon_version);
+    showNotice('#icon-notice', message);
+  } catch (err) {
+    $('#icon-error').textContent = err.message;
+  }
+}
+
+$('#icon-file').addEventListener('change', e => {
+  const file = e.target.files[0];
+  e.target.value = ''; // allow choosing the same file again later
+  if (!file) return;
+  if (file.size > 500 * 1024) {
+    $('#icon-error').textContent = 'The image is too large. Please use one under 500 KB.';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => saveIcon(reader.result, 'Icon updated. It now shows on the login page.');
+  reader.readAsDataURL(file);
+});
+
+$('#icon-remove').addEventListener('click', () => {
+  if (confirm('Remove the icon from the login page?')) saveIcon(null, 'Icon removed.');
+});
+
 async function loadGeneralSettings() {
   showNotice('#general-settings-notice', '');
   $('#general-settings-error').textContent = '';
   const s = await api('GET', '/api/settings/general');
   $('#general-settings-form').elements.app_title.value = s.app_title === s.default_app_title ? '' : s.app_title;
+  showNotice('#icon-notice', '');
+  $('#icon-error').textContent = '';
+  renderIconSetting(s.icon_version);
 }
 
 $('#general-settings-form').addEventListener('submit', async e => {
@@ -1152,7 +1201,10 @@ $('#general-settings-form').addEventListener('submit', async e => {
 });
 
 // The title is needed before login too, so load it straight away
-fetch('/api/branding').then(r => r.json()).then(({ title }) => applyAppTitle(title)).catch(() => {});
+fetch('/api/branding').then(r => r.json()).then(({ title, icon_version }) => {
+  applyAppTitle(title);
+  applyIcon(icon_version);
+}).catch(() => {});
 
 // ---------- footer ----------
 

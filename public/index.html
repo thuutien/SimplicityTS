@@ -9,7 +9,7 @@
 <body>
   <!-- Logged-out screens -->
   <section id="auth-view" class="hidden">
-    <img src="logo.png" alt="Master Distributor" class="login-logo">
+    <img id="login-icon" class="login-logo hidden" alt="">
     <!-- Login -->
     <form id="login-form" class="card auth-card" data-auth-card="login">
       <h1 data-app-title>Ticket System</h1>
@@ -267,7 +267,7 @@
       <div id="settings-page" class="page">
         <h2>Settings</h2>
         <details class="card settings-section" data-section="general">
-          <summary><h3>General</h3><span class="summary-hint">App title</span></summary>
+          <summary><h3>General</h3><span class="summary-hint">App title and icon</span></summary>
           <form id="general-settings-form" autocomplete="off">
             <label>App title
               <input name="app_title" maxlength="60" placeholder="Ticket System">
@@ -277,6 +277,19 @@
             <p class="notice hidden" id="general-settings-notice"></p>
             <p class="error" id="general-settings-error"></p>
           </form>
+
+          <h4>Icon</h4>
+          <p class="hint">Shown above the login box. PNG, JPG, GIF or WebP, up to 500 KB. A wide logo works best.</p>
+          <div class="icon-setting">
+            <div class="icon-preview" id="icon-preview"><span class="muted">No icon</span></div>
+            <div class="form-actions">
+              <label class="button secondary" for="icon-file">Upload icon</label>
+              <input type="file" id="icon-file" accept="image/png,image/jpeg,image/gif,image/webp" class="visually-hidden">
+              <button type="button" id="icon-remove" class="secondary hidden">Remove icon</button>
+            </div>
+          </div>
+          <p class="notice hidden" id="icon-notice"></p>
+          <p class="error" id="icon-error"></p>
         </details>
 
         <details class="card settings-section" data-section="departments">

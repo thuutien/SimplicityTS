@@ -287,6 +287,7 @@ function activityText(a, quoteLength) {
     case 'department': return `moved ticket to <strong>${esc(a.details)}</strong>`;
     case 'assigned': return `assigned ticket to <strong>${esc(a.details)}</strong>`;
     case 'unassigned': return `unassigned <strong>${esc(a.details)}</strong>`;
+    case 'claimed': return 'claimed the ticket';
     case 'comment': return `replied <span class="quote">“${esc(quote)}”</span>`;
     case 'deleted': return 'deleted a ticket';
     default: return esc(a.action);
@@ -652,6 +653,9 @@ async function openTicket(id) {
   const opts = (values, selected) => values.map(v => `<option value="${v}" ${v === selected ? 'selected' : ''}>${label(v)}</option>`).join('');
 
   let controls = '';
+  const isAdmin = me.role === 'admin';
+  // Claim = assign to yourself. Agents can only claim unassigned tickets; admins can take any ticket.
+  const canClaim = t.can_work && t.status !== 'closed' && t.assigned_to !== me.id && (isAdmin || !t.assigned_to);
   if (t.can_work) {
     controls = `
       <div class="admin-controls">
@@ -663,9 +667,10 @@ async function openTicket(id) {
             ${departments.map(d => `<option value="${d.id}" ${d.id === t.department_id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}
           </select>
         </label>
-        <label>Assigned to <select id="ctl-assignee"></select></label>
+        ${isAdmin ? '<label>Assigned to <select id="ctl-assignee"></select></label>' : ''}
         <button id="ctl-save">Save changes</button>
-        ${me.role === 'admin' ? '<button id="ctl-delete" class="danger">Delete ticket</button>' : ''}
+        ${canClaim ? '<button id="ctl-claim" class="secondary">Claim ticket</button>' : ''}
+        ${isAdmin ? '<button id="ctl-delete" class="danger">Delete ticket</button>' : ''}
       </div>`;
   } else {
     if (t.created_by === me.id && t.status !== 'closed') {
@@ -717,7 +722,7 @@ async function openTicket(id) {
     $('#ctl-assignee').innerHTML = '<option value="">Unassigned</option>' + eligible.map(a =>
       `<option value="${a.id}" ${a.id === current ? 'selected' : ''}>${esc(a.name)} (${label(a.role)})</option>`).join('');
   };
-  if (t.can_work) {
+  if (t.can_work && isAdmin) {
     fillAssignees();
     $('#ctl-department').addEventListener('change', fillAssignees);
   }
@@ -726,8 +731,10 @@ async function openTicket(id) {
     status: $('#ctl-status').value,
     priority: $('#ctl-priority').value,
     ...($('#ctl-department').value ? { department_id: Number($('#ctl-department').value) } : {}),
-    assigned_to: $('#ctl-assignee').value ? Number($('#ctl-assignee').value) : null,
+    // Only admins choose the assignee; agents use "Claim ticket"
+    ...(isAdmin ? { assigned_to: $('#ctl-assignee').value ? Number($('#ctl-assignee').value) : null } : {}),
   }));
+  $('#ctl-claim')?.addEventListener('click', () => updateTicket({ assigned_to: me.id }));
   $('#ctl-close')?.addEventListener('click', () => updateTicket({ status: 'closed' }));
   $('#ctl-delete')?.addEventListener('click', async () => {
     if (!confirm(`Delete ticket #${t.id}? This cannot be undone.`)) return;

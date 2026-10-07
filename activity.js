@@ -23,7 +23,8 @@ function ticketUpdated(before, userId) {
   if (t.priority !== before.priority) log(userId, t, 'priority', `${label(before.priority)} → ${label(t.priority)}`);
   if (t.department_id !== before.department_id) log(userId, t, 'department', deptName(t.department_id));
   if (t.assigned_to !== before.assigned_to) {
-    if (t.assigned_to) log(userId, t, 'assigned', userName(t.assigned_to));
+    if (t.assigned_to === userId) log(userId, t, 'claimed');
+    else if (t.assigned_to) log(userId, t, 'assigned', userName(t.assigned_to));
     else log(userId, t, 'unassigned', userName(before.assigned_to));
   }
 }

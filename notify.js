@@ -101,21 +101,16 @@ const fmtDate = s => new Date(s.replace(' ', 'T') + 'Z').toLocaleString('en-US',
 
 const REQUEST_TYPE_NAMES = { Production: 'Production Request', 'IT Support': 'Report Issue to IT' };
 
-// Everything about the ticket, so the email can be read on its own.
+// What was requested, so the email can be read on its own:
+// Ticket, Request type, Request, Location, Additional info (IT tickets: Issue description).
 function fullTicketDetails(t) {
-  const name = id => db.prepare("SELECT name || CASE WHEN deleted_at IS NULL THEN '' ELSE ' (deleted)' END AS name FROM users WHERE id = ?").get(id)?.name;
   const rows = [
     ['Ticket', `#${t.id}`],
     ['Request type', REQUEST_TYPE_NAMES[t.department_name] || t.department_name || 'None'],
     ...(t.request_item ? [['Request', t.request_item]] : []),
     ...(t.location ? [['Location', t.location]] : []),
-    ...(!t.request_item && !t.location ? [['Title', t.title]] : []),
+    ...(!t.request_item && !t.location ? [['Title', t.title]] : []), // tickets from before the request form
     ...(t.description ? [[t.request_item ? 'Additional info' : 'Issue description', t.description]] : []),
-    ['Status', label(t.status)],
-    ['Priority', label(t.priority)],
-    ['Assigned to', name(t.assigned_to) || 'Unassigned'],
-    ['Created by', name(t.created_by)],
-    ['Created', fmtDate(t.created_at)],
   ];
   return { title: 'Ticket details', rows };
 }

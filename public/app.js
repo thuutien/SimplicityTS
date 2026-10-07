@@ -736,12 +736,12 @@ async function openTicket(id) {
           </select>
         </label>
         ${isAdmin ? '<label>Assigned to <select id="ctl-assignee"></select></label>' : ''}
+        ${canClaim ? '<button id="ctl-claim" class="success">Claim ticket</button>' : ''}
+        ${canRelease ? '<button id="ctl-release" class="secondary" title="Unassign yourself so someone else can claim it">Release</button>' : ''}
         <span id="ctl-save-status" class="save-status" role="status" aria-live="polite"></span>
-        ${canClaim || canRelease || isAdmin ? `
+        ${isAdmin ? `
           <div class="ticket-actions">
-            ${canClaim ? '<button id="ctl-claim" class="success">Claim ticket</button>' : ''}
-            ${canRelease ? '<button id="ctl-release" class="secondary" title="Unassign yourself so someone else can claim it">Release</button>' : ''}
-            ${isAdmin ? '<button id="ctl-delete" class="danger">Delete ticket</button>' : ''}
+            <button id="ctl-delete" class="danger">Delete ticket</button>
           </div>` : ''}
       </div>`;
   } else {

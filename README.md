@@ -73,7 +73,7 @@ Restart the server after changing it. Without SMTP settings, emails are printed 
 | Ticket assigned | The new assignee |
 | Status changed | The person who created the ticket |
 | Comment by staff | The ticket creator (and assignee) |
-| Comment by the creator | The assignee, or the department's agents if unassigned |
+| Comment by the creator | The assignee, or every agent in the department plus all admins if unassigned |
 | Ticket moved to another department | That department's agents |
 
 Nobody is emailed about their own actions. Every email is logged in the `email_outbox` table; failed sends are retried up to 5 times.

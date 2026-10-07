@@ -672,10 +672,13 @@ async function openTicket(id) {
         </label>
         ${isAdmin ? '<label>Assigned to <select id="ctl-assignee"></select></label>' : ''}
         <button id="ctl-save">Save changes</button>
-        ${canClaim ? '<button id="ctl-claim" class="success">Claim ticket</button>' : ''}
-        ${canRelease ? '<button id="ctl-release" class="secondary" title="Unassign yourself so someone else can claim it">Release</button>' : ''}
-        ${isAdmin ? '<button id="ctl-delete" class="danger">Delete ticket</button>' : ''}
-      </div>`;
+      </div>
+      ${canClaim || canRelease || isAdmin ? `
+        <div class="ticket-actions">
+          ${canClaim ? '<button id="ctl-claim" class="success">Claim ticket</button>' : ''}
+          ${canRelease ? '<button id="ctl-release" class="secondary" title="Unassign yourself so someone else can claim it">Release</button>' : ''}
+          ${isAdmin ? '<button id="ctl-delete" class="danger">Delete ticket</button>' : ''}
+        </div>` : ''}`;
   } else {
     if (t.created_by === me.id && t.status !== 'closed') {
       controls = `<div class="admin-controls"><button id="ctl-close" class="secondary">Close ticket</button></div>`;

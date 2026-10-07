@@ -233,6 +233,9 @@ tbody tr.clickable:hover { background: #f3f4f6; }
 .description { white-space: pre-wrap; line-height: 1.5; }
 .admin-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding-top: 12px; margin-top: 12px; border-top: 1px solid #e5e7eb; }
 .admin-controls label { margin: 0; }
+/* Claim / Release on the left, Delete pushed to the far right */
+.ticket-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.ticket-actions #ctl-delete { margin-left: auto; }
 
 .comment { padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
 .comment .who { font-size: 13px; color: #4b5563; margin-bottom: 4px; }

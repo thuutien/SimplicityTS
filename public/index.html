@@ -265,8 +265,8 @@
       <!-- Settings (admin) -->
       <div id="settings-page" class="page">
         <h2>Settings</h2>
-        <div class="card">
-          <h3>Departments</h3>
+        <details class="card settings-section" data-section="departments">
+          <summary><h3>Departments</h3><span class="summary-hint">Add and rename departments</span></summary>
           <p class="muted">Tickets belong to a department, and agents work on their own department's tickets.
             Renaming a department keeps all its tickets and agents.</p>
           <table class="dash-table">
@@ -279,10 +279,11 @@
           </form>
           <p class="notice hidden" id="dept-notice"></p>
           <p class="error" id="dept-error"></p>
-        </div>
+        </details>
 
-        <form id="email-settings-form" class="card" autocomplete="off">
-          <h3>Email</h3>
+        <details class="card settings-section" data-section="email">
+          <summary><h3>Email</h3><span class="summary-hint">Mail server, sender and links in emails</span></summary>
+        <form id="email-settings-form" autocomplete="off">
           <p class="muted">How the app sends emails (ticket alerts, password resets, sign-up links).
             Fields marked <span class="src-tag">from .env</span> are using the value in the server's .env file;
             saving a value here overrides it, and clearing a field goes back to .env.</p>
@@ -324,6 +325,7 @@
           <p class="notice hidden" id="email-test-notice"></p>
           <p class="error" id="email-test-error"></p>
         </form>
+        </details>
       </div>
 
       <!-- Users (admin) -->

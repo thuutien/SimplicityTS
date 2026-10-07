@@ -1020,6 +1020,30 @@ $('#dept-add-form').addEventListener('submit', async e => {
   }
 });
 
+// Collapsible settings sections: remember which ones this browser left open.
+// localStorage can be unavailable (private mode, blocked storage), so failures are ignored.
+const OPEN_SECTIONS_KEY = 'settings.openSections';
+function readOpenSections() {
+  try {
+    return JSON.parse(localStorage.getItem(OPEN_SECTIONS_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+document.querySelectorAll('.settings-section').forEach(section => {
+  section.open = readOpenSections().includes(section.dataset.section);
+  section.addEventListener('toggle', () => {
+    const open = new Set(readOpenSections());
+    if (section.open) open.add(section.dataset.section);
+    else open.delete(section.dataset.section);
+    try {
+      localStorage.setItem(OPEN_SECTIONS_KEY, JSON.stringify([...open]));
+    } catch {
+      // not saved; the section still opens and closes
+    }
+  });
+});
+
 // ----- Email settings -----
 
 async function loadEmailSettings() {

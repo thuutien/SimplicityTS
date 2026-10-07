@@ -5,8 +5,10 @@
 #   - schedules a daily database backup at 2:00 AM
 #
 # Needs NSSM (https://nssm.cc): install it with "winget install NSSM.NSSM", or put nssm.exe in the tools folder.
-# Run it by double-clicking install-service.bat in the app folder, or from PowerShell:
-#   powershell -ExecutionPolicy Bypass -File scripts\install-service.ps1
+# How to run (it asks for administrator rights by itself):
+#   - In File Explorer: right-click scripts\setup.ps1 > "Run with PowerShell"
+#   - Or in PowerShell, from the app folder:
+#       powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 param(
     [string]$ServiceName = 'SimplicityTS',
     [switch]$NoPause

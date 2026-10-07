@@ -5,8 +5,10 @@
 #   3. Stops the service, downloads the new code, installs packages, starts the service
 #   4. Checks the app responds; if not, goes back to the previous version automatically
 #
-# Run it by double-clicking update.bat in the app folder, or from PowerShell:
-#   powershell -ExecutionPolicy Bypass -File scripts\update.ps1
+# How to run (it asks for administrator rights by itself):
+#   - In File Explorer: right-click scripts\update.ps1 > "Run with PowerShell"
+#   - Or in PowerShell, from the app folder:
+#       powershell -ExecutionPolicy Bypass -File .\scripts\update.ps1
 param(
     [string]$ServiceName = 'SimplicityTS',
     [switch]$NoPause

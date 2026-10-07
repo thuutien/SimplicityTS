@@ -93,13 +93,21 @@ One-time setup:
 3. Copy `.env.example` to `.env` and fill it in. Set `APP_URL` to the address people will use,
    e.g. `http://192.168.1.50:5000`. To keep existing data, copy `tickets.db` into the folder too
    (stop the old copy of the app first).
-4. Double-click **`install-service.bat`** and accept the Windows permission prompt. It installs packages,
-   registers the `SimplicityTS` Windows service (starts with Windows, restarts if it crashes), opens the
-   port in Windows Firewall and schedules a daily database backup at 2:00 AM.
+4. Run the setup script and accept the Windows permission prompt. Either right-click
+   **`scripts\setup.ps1`** > **Run with PowerShell**, or from the app folder run:
+   ```
+   powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
+   ```
+   It installs packages, registers the `SimplicityTS` Windows service (starts with Windows, restarts if it
+   crashes), opens the port in Windows Firewall and schedules a daily database backup at 2:00 AM.
 
-Updating: double-click **`update.bat`**. It checks GitHub for a new version, backs up the database,
-stops the service, downloads the new code, installs packages and starts the service again. If the app
-doesn't start, it goes back to the previous version automatically.
+Updating: right-click **`scripts\update.ps1`** > **Run with PowerShell**, or run:
+```
+powershell -ExecutionPolicy Bypass -File .\scripts\update.ps1
+```
+It checks GitHub for a new version, backs up the database, stops the service, downloads the new code,
+installs packages and starts the service again. If the app doesn't start, it goes back to the previous
+version automatically.
 
 | What | Where |
 |---|---|

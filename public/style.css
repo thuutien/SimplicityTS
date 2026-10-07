@@ -20,7 +20,35 @@ header nav button.active, header nav button:hover { color: #fff; background: #37
 .me .link { color: #d1d5db; }
 
 main { max-width: 1680px; margin: 24px auto; padding: 0 16px; }
-.page:not(#tickets-page) { max-width: 968px; margin: 0 auto; }
+.page:not(#tickets-page):not(#dashboard-page) { max-width: 968px; margin: 0 auto; }
+
+/* Dashboard */
+.dash-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.dash-kpis .tile { background: #fff; border: 1px solid #e5e7eb; border-left-width: 4px; padding: 14px 16px; }
+.dash-kpis .tile .num { font-size: 30px; }
+.dash-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.dash-card { margin: 0; padding: 16px; }
+.dash-card.wide { grid-column: 1 / -1; }
+.dash-card h3 { font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 10px; }
+.dash-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.dash-table th, .dash-table td { padding: 8px 10px; border-bottom: 1px solid #f3f4f6; }
+.dash-table th { background: #f9fafb; font-weight: 600; font-size: 13px; color: #374151; }
+.dash-table td.n, .dash-table th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dash-table tr:last-child td { border-bottom: none; }
+.dash-table tr.clickable { cursor: pointer; }
+.dash-table tr.clickable:hover { background: #f9fafb; }
+.dash-scroll { max-height: 360px; overflow: auto; }
+.dash-scroll th { position: sticky; top: 0; }
+.share { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.share .bar-track { width: 80px; flex: 0 0 80px; }
+.share .bar-fill.blue { background: var(--st-open); }
+@media (max-width: 1100px) {
+  .dash-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dash-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .dash-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 /* Ticket list + summary panel */
 /* Summary (left) | ticket list | agent activity (right). Employees only get the list. */

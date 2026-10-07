@@ -550,6 +550,93 @@ app.get('/api/summary', requireAuth, requireStaff, (req, res) => {
   res.json({ today, open, departments, requests_today: requestsToday });
 });
 
+// Dashboard statistics for a date range (agents and admins).
+// from/to: UTC "YYYY-MM-DD HH:MM:SS" for the viewer's local range. tz: viewer's offset from UTC in minutes
+// (e.g. -300), used to group "per day" by the viewer's local date.
+app.get('/api/dashboard', requireAuth, requireStaff, (req, res) => {
+  const utcTime = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+  const { from, to } = req.query;
+  if (!utcTime.test(from || '') || !utcTime.test(to || '')) return res.status(400).json({ error: 'from and to are required' });
+  const tz = `${Math.max(-840, Math.min(840, parseInt(req.query.tz, 10) || 0))} minutes`;
+  const hours = "(julianday(t.closed_at) - julianday(t.created_at)) * 24";
+  const inRange = col => `${col} >= $from AND ${col} < $to`;
+  const p = { from, to };
+
+  const overview = db.prepare(`
+    SELECT
+      (SELECT COUNT(*) FROM tickets t WHERE ${inRange('t.created_at')}) AS created,
+      (SELECT COUNT(*) FROM tickets t WHERE ${inRange('t.closed_at')}) AS closed,
+      (SELECT AVG(${hours}) FROM tickets t WHERE ${inRange('t.closed_at')}) AS avg_close_hours,
+      (SELECT COUNT(*) FROM tickets WHERE status != 'closed') AS open_now,
+      (SELECT COUNT(*) FROM tickets WHERE status != 'closed' AND assigned_to IS NULL) AS unassigned_now
+  `).get(p);
+
+  // Per local day: created and closed
+  const created = db.prepare(`SELECT date(t.created_at, $tz) AS day, COUNT(*) AS n FROM tickets t WHERE ${inRange('t.created_at')} GROUP BY day`).all({ ...p, tz });
+  const closed = db.prepare(`SELECT date(t.closed_at, $tz) AS day, COUNT(*) AS n FROM tickets t WHERE ${inRange('t.closed_at')} GROUP BY day`).all({ ...p, tz });
+  const perDay = {};
+  for (const r of created) (perDay[r.day] ??= { day: r.day, created: 0, closed: 0 }).created = r.n;
+  for (const r of closed) (perDay[r.day] ??= { day: r.day, created: 0, closed: 0 }).closed = r.n;
+
+  const departments = db.prepare(`
+    SELECT d.name,
+      COALESCE(SUM(${inRange('t.created_at')}), 0) AS created,
+      COALESCE(SUM(${inRange('t.closed_at')}), 0) AS closed,
+      COALESCE(SUM(t.status != 'closed'), 0) AS open_now,
+      AVG(CASE WHEN ${inRange('t.closed_at')} THEN ${hours} END) AS avg_close_hours
+    FROM departments d LEFT JOIN tickets t ON t.department_id = d.id
+    GROUP BY d.id ORDER BY d.name
+  `).all(p);
+
+  const requestTypes = db.prepare(`
+    SELECT CASE
+             WHEN t.request_item IS NOT NULL THEN t.request_item
+             WHEN d.name = 'IT Support' THEN 'IT issue'
+             ELSE 'Other'
+           END AS type,
+           COUNT(*) AS created,
+           SUM(t.status != 'closed') AS open_now
+    FROM tickets t LEFT JOIN departments d ON d.id = t.department_id
+    WHERE ${inRange('t.created_at')}
+    GROUP BY type ORDER BY created DESC, type
+  `).all(p);
+
+  // Agents and admins: what they hold now and what they did in the range (from the activity log)
+  const agents = db.prepare(`
+    SELECT u.id, u.name, u.role, d.name AS department,
+      (SELECT COUNT(*) FROM tickets t WHERE t.assigned_to = u.id AND t.status != 'closed') AS assigned_open,
+      (SELECT COUNT(*) FROM activity_log a WHERE a.user_id = u.id AND a.action = 'status'
+         AND a.details LIKE '% Closed' AND ${inRange('a.created_at')}) AS closed,
+      (SELECT COUNT(*) FROM activity_log a WHERE a.user_id = u.id AND a.action = 'comment' AND ${inRange('a.created_at')}) AS replies,
+      (SELECT COUNT(*) FROM activity_log a WHERE a.user_id = u.id AND ${inRange('a.created_at')}) AS actions
+    FROM users u LEFT JOIN departments d ON d.id = u.department_id
+    WHERE u.role IN ('agent', 'admin') AND u.deleted_at IS NULL
+    ORDER BY actions DESC, u.name
+  `).all(p);
+
+  const locations = db.prepare(`
+    SELECT t.location, COUNT(*) AS created, SUM(t.status != 'closed') AS open_now
+    FROM tickets t WHERE t.location IS NOT NULL AND t.location != '' AND ${inRange('t.created_at')}
+    GROUP BY lower(t.location) ORDER BY created DESC, t.location LIMIT 10
+  `).all(p);
+
+  const oldestOpen = db.prepare(`
+    SELECT t.id, t.title, t.status, t.created_at, d.name AS department, ${displayName('a')} AS assigned_to_name
+    FROM tickets t LEFT JOIN departments d ON d.id = t.department_id LEFT JOIN users a ON a.id = t.assigned_to
+    WHERE t.status != 'closed' ORDER BY t.created_at LIMIT 10
+  `).all();
+
+  res.json({
+    overview,
+    per_day: Object.values(perDay).sort((a, b) => b.day.localeCompare(a.day)),
+    departments,
+    request_types: requestTypes,
+    agents,
+    locations,
+    oldest_open: oldestOpen,
+  });
+});
+
 // Agent activity: actions by agents and admins, newest first.
 // Filters: from/to (UTC "YYYY-MM-DD HH:MM:SS", the viewer's chosen day), q (agent name), limit/offset for paging.
 app.get('/api/activity', requireAuth, requireStaff, (req, res) => {

@@ -75,6 +75,7 @@
     <header>
       <h1>Ticket System</h1>
       <nav>
+        <button data-nav="dashboard" class="staff-only">Dashboard</button>
         <button data-nav="tickets">Tickets</button>
         <button data-nav="new">New ticket</button>
         <button data-nav="users" class="admin-only">Users</button>
@@ -87,6 +88,27 @@
     </header>
 
     <main>
+      <!-- Dashboard (agents and admins) -->
+      <div id="dashboard-page" class="page">
+        <div class="toolbar">
+          <h2>Dashboard</h2>
+          <div class="filters">
+            <div class="segmented" role="group" aria-label="Date range">
+              <button type="button" data-range="today">Today</button>
+              <button type="button" data-range="7">7 days</button>
+              <button type="button" data-range="30" class="active">30 days</button>
+              <button type="button" data-range="90">90 days</button>
+            </div>
+            <div class="date-filter">
+              <input type="date" id="dash-from" aria-label="From">
+              <span class="muted">to</span>
+              <input type="date" id="dash-to" aria-label="To">
+            </div>
+          </div>
+        </div>
+        <div id="dashboard-content"></div>
+      </div>
+
       <!-- Ticket list -->
       <div id="tickets-page" class="page">
        <div class="tickets-layout">

@@ -151,10 +151,12 @@ function renderMe() {
 }
 
 function navigate(page) {
+  if (page === 'dashboard' && !isStaff()) page = 'tickets';
   clearHash();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   $(`#${page}-page`).classList.add('active');
   document.querySelectorAll('header nav button').forEach(b => b.classList.toggle('active', b.dataset.nav === page));
+  if (page === 'dashboard') loadDashboard();
   if (page === 'tickets') loadTickets();
   if (page === 'users') loadUsers();
   if (page === 'account') loadAccount();
@@ -390,12 +392,159 @@ for (const sel of ['#activity-list', '#activity-all-rows']) {
   });
 }
 
-// Keep the summary and activity current while the ticket list is on screen
+// ----- dashboard (agents and admins) -----
+
+// Range presets: "today", or the last N days including today
+function setDashboardRange(preset) {
+  const today = new Date();
+  const start = new Date(today);
+  if (preset !== 'today') start.setDate(start.getDate() - (Number(preset) - 1));
+  $('#dash-from').value = localDateString(start);
+  $('#dash-to').value = localDateString(today);
+  document.querySelectorAll('[data-range]').forEach(b => b.classList.toggle('active', b.dataset.range === preset));
+}
+setDashboardRange('30');
+
+document.querySelectorAll('[data-range]').forEach(btn => btn.addEventListener('click', () => {
+  setDashboardRange(btn.dataset.range);
+  loadDashboard();
+}));
+for (const sel of ['#dash-from', '#dash-to']) {
+  $(sel).addEventListener('change', () => {
+    document.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active')); // custom range
+    loadDashboard();
+  });
+}
+
+function formatHours(h) {
+  if (h == null) return '–';
+  if (h < 1) return `${Math.max(1, Math.round(h * 60))} min`;
+  if (h < 48) return `${h.toFixed(1)} h`;
+  return `${(h / 24).toFixed(1)} days`;
+}
+const ageHours = s => (Date.now() - new Date(s.replace(' ', 'T') + 'Z')) / 3600000;
+
+async function loadDashboard() {
+  let fromDay = $('#dash-from').value;
+  let toDay = $('#dash-to').value;
+  if (!fromDay || !toDay) return;
+  if (fromDay > toDay) [fromDay, toDay] = [toDay, fromDay];
+  const [fy, fm, fd] = fromDay.split('-').map(Number);
+  const [ty, tm, td] = toDay.split('-').map(Number);
+  const query = new URLSearchParams({
+    from: toDbTime(new Date(fy, fm - 1, fd)),
+    to: toDbTime(new Date(ty, tm - 1, td + 1)),
+    tz: -new Date().getTimezoneOffset(),
+  });
+
+  let d;
+  try {
+    d = await api('GET', '/api/dashboard?' + query);
+  } catch (err) {
+    $('#dashboard-content').innerHTML = `<p class="error">${esc(err.message)}</p>`;
+    return;
+  }
+
+  const tile = (num, lbl, tone) => `<div class="tile ${tone}"><div class="num">${num}</div><div class="lbl">${esc(lbl)}</div></div>`;
+  const deptDot = name => `<span class="dot ${({ 'IT Support': 'dept-it', Production: 'dept-prod' })[name] || ''}" aria-hidden="true"></span>`;
+  const empty = (cols, text = 'No tickets in this range.') => `<tr><td colspan="${cols}" class="muted">${text}</td></tr>`;
+  const totalTypes = d.request_types.reduce((sum, r) => sum + r.created, 0) || 1;
+  const fmtDay = day => new Date(day + 'T00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const o = d.overview;
+
+  $('#dashboard-content').innerHTML = `
+    <div class="dash-kpis">
+      ${tile(o.created, 'Tickets created', 'tone-blue')}
+      ${tile(o.closed, 'Tickets closed', 'tone-green')}
+      ${tile(formatHours(o.avg_close_hours), 'Average time to close', 'tone-gray')}
+      ${tile(o.open_now, 'Open right now', 'tone-blue')}
+      ${tile(o.unassigned_now, o.unassigned_now ? '⚠ Unassigned right now' : 'Unassigned right now', o.unassigned_now ? 'tone-amber' : 'tone-gray')}
+    </div>
+
+    <div class="dash-grid">
+      <div class="card dash-card">
+        <h3>By department</h3>
+        <table class="dash-table">
+          <thead><tr><th>Department</th><th class="n">Created</th><th class="n">Closed</th><th class="n">Open now</th><th class="n">Avg. time to close</th></tr></thead>
+          <tbody>${d.departments.map(r => `<tr>
+            <td>${deptDot(r.name)}${esc(r.name)}</td><td class="n">${r.created}</td><td class="n">${r.closed}</td>
+            <td class="n">${r.open_now}</td><td class="n">${formatHours(r.avg_close_hours)}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+
+      <div class="card dash-card">
+        <h3>By request type</h3>
+        <table class="dash-table">
+          <thead><tr><th>Request</th><th class="n">Created</th><th class="n">Still open</th><th class="n">Share</th></tr></thead>
+          <tbody>${d.request_types.length ? d.request_types.map(r => {
+            const pct = Math.round((r.created / totalTypes) * 100);
+            return `<tr><td>${esc(r.type)}</td><td class="n">${r.created}</td><td class="n">${r.open_now}</td>
+              <td class="n"><div class="share"><div class="bar-track"><div class="bar-fill blue" style="width: ${pct}%"></div></div>${pct}%</div></td></tr>`;
+          }).join('') : empty(4)}</tbody>
+        </table>
+      </div>
+
+      <div class="card dash-card wide">
+        <h3>Agent performance</h3>
+        <table class="dash-table">
+          <thead><tr><th>Agent</th><th>Department</th><th class="n" title="Open tickets assigned to them right now">Open assigned</th>
+            <th class="n" title="Tickets they closed in this range">Closed</th><th class="n" title="Replies they wrote in this range">Replies</th>
+            <th class="n" title="All their ticket actions in this range">Total actions</th></tr></thead>
+          <tbody>${d.agents.length ? d.agents.map(a => `<tr>
+            <td><strong>${esc(a.name)}</strong> ${badge(a.role)}</td>
+            <td>${a.department ? deptDot(a.department) + esc(a.department) : '<span class="muted">–</span>'}</td>
+            <td class="n">${a.assigned_open}</td><td class="n">${a.closed}</td><td class="n">${a.replies}</td><td class="n">${a.actions}</td></tr>`).join('')
+            : empty(6, 'No agents yet.')}</tbody>
+        </table>
+      </div>
+
+      <div class="card dash-card">
+        <h3>Tickets per day</h3>
+        <div class="dash-scroll">
+          <table class="dash-table">
+            <thead><tr><th>Date</th><th class="n">Created</th><th class="n">Closed</th></tr></thead>
+            <tbody>${d.per_day.length ? d.per_day.map(r => `<tr><td>${esc(fmtDay(r.day))}</td><td class="n">${r.created}</td><td class="n">${r.closed}</td></tr>`).join('')
+              : empty(3)}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card dash-card">
+        <h3>Top locations</h3>
+        <table class="dash-table">
+          <thead><tr><th>Location</th><th class="n">Created</th><th class="n">Still open</th></tr></thead>
+          <tbody>${d.locations.length ? d.locations.map(r => `<tr><td>${esc(r.location)}</td><td class="n">${r.created}</td><td class="n">${r.open_now}</td></tr>`).join('')
+            : empty(3)}</tbody>
+        </table>
+      </div>
+
+      <div class="card dash-card wide">
+        <h3>Oldest open tickets</h3>
+        <table class="dash-table">
+          <thead><tr><th>#</th><th>Ticket</th><th>Department</th><th>Status</th><th>Assigned to</th><th class="n">Open for</th></tr></thead>
+          <tbody id="dash-oldest">${d.oldest_open.length ? d.oldest_open.map(t => `<tr class="clickable" data-ticket="${t.id}">
+            <td>${t.id}</td><td>${esc(t.title)}</td><td>${t.department ? deptDot(t.department) + esc(t.department) : '–'}</td>
+            <td>${badge(t.status)}</td><td>${esc(t.assigned_to_name) || '<span class="muted">Unassigned</span>'}</td>
+            <td class="n">${formatHours(ageHours(t.created_at))}</td></tr>`).join('')
+            : empty(6, 'No open tickets.')}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+$('#dashboard-content').addEventListener('click', e => {
+  const row = e.target.closest('[data-ticket]');
+  if (row) openTicket(row.dataset.ticket);
+});
+
+// Keep the panels and dashboard current while they are on screen
 setInterval(() => {
-  if (isStaff() && !document.hidden && $('#tickets-page').classList.contains('active')) {
+  if (!isStaff() || document.hidden) return;
+  if ($('#tickets-page').classList.contains('active')) {
     loadSummary();
     loadActivity();
   }
+  if ($('#dashboard-page').classList.contains('active')) loadDashboard();
 }, 60 * 1000);
 
 async function loadTickets() {

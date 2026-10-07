@@ -382,10 +382,8 @@
       <!-- Users (admin) -->
       <div id="users-page" class="page">
         <h2>Users</h2>
-        <table class="card">
-          <thead><tr><th data-sort-col="name"><button type="button" class="sort-header" data-sort="name">Name <span class="sort-arrow"></span></button></th><th>Email</th><th data-sort-col="role"><button type="button" class="sort-header" data-sort="role">Role <span class="sort-arrow"></span></button></th><th>Department</th><th>Created</th><th></th></tr></thead>
-          <tbody id="user-rows"></tbody>
-        </table>
+        <!-- One table per role: Admins, Agents, Employees -->
+        <div id="user-rows"></div>
         <p class="notice hidden" id="user-list-notice"></p>
         <p class="error" id="user-list-error"></p>
         <form id="user-form" class="card">

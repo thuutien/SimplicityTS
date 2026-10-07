@@ -929,31 +929,14 @@ $('#password-form').addEventListener('submit', async e => {
 
 let usersById = {};
 
-// Users table sorting: by name (A–Z) or by role (Admin, Agent, Employee); click a heading again to reverse
-let userSort = { key: 'name', dir: 1 };
-const ROLE_RANK = { admin: 0, agent: 1, employee: 2 };
+// Users page: one table per role. Each is sorted by name; clicking "Name" reverses all three.
+let userSortDir = 1; // 1 = A–Z, -1 = Z–A
 const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-
-function sortUsers(users) {
-  return [...users].sort((a, b) => {
-    const primary = userSort.key === 'role' ? ROLE_RANK[a.role] - ROLE_RANK[b.role] : byName(a, b);
-    // Within the same role, keep names A–Z
-    return primary !== 0 ? primary * userSort.dir : byName(a, b);
-  });
-}
-
-function renderSortHeaders() {
-  document.querySelectorAll('#users-page [data-sort-col]').forEach(th => {
-    const active = th.dataset.sortCol === userSort.key;
-    th.setAttribute('aria-sort', active ? (userSort.dir === 1 ? 'ascending' : 'descending') : 'none');
-    th.querySelector('.sort-arrow').textContent = active ? (userSort.dir === 1 ? '▲' : '▼') : '';
-  });
-}
-
-document.querySelectorAll('#users-page .sort-header').forEach(btn => btn.addEventListener('click', () => {
-  userSort = btn.dataset.sort === userSort.key ? { key: userSort.key, dir: -userSort.dir } : { key: btn.dataset.sort, dir: 1 };
-  renderUserRows();
-}));
+const USER_GROUPS = [
+  { role: 'admin', title: 'Admins' },
+  { role: 'agent', title: 'Agents' },
+  { role: 'employee', title: 'Employees' },
+];
 
 let loadedUsers = [];
 async function loadUsers() {
@@ -964,21 +947,46 @@ async function loadUsers() {
 }
 
 function renderUserRows() {
-  renderSortHeaders();
-  $('#user-rows').innerHTML = sortUsers(loadedUsers).map(u => `
-    <tr>
-      <td>${esc(u.name)}${u.id === me.id ? ' <span class="muted">(you)</span>' : ''}${u.is_protected ? ' <span class="badge main-admin" title="Set in .env. Cannot be deleted.">Main admin</span>' : ''}</td>
-      <td>${esc(u.email)} ${u.verified ? '' : '<span class="badge unverified" title="Has not clicked the verification link yet">Unverified</span>'}</td>
-      <td>${badge(u.role)}</td>
-      <td>${u.role === 'agent' ? (esc(u.department_name) || '<span class="muted">None</span>') : '<span class="muted">-</span>'}</td>
-      <td>${fmtDate(u.created_at)}</td>
-      <td class="row-actions">
-        <button class="secondary" data-edit-user="${u.id}">Edit</button>
-        <button class="secondary" data-reset-user="${u.id}" title="Email this user a link to set a new password">Send reset link</button>
-        ${u.id === me.id || u.is_protected ? '' : `<button class="danger" data-delete-user="${u.id}">Delete</button>`}
-      </td>
-    </tr>`).join('');
+  const arrow = userSortDir === 1 ? '▲' : '▼';
+  const ariaSort = userSortDir === 1 ? 'ascending' : 'descending';
+  $('#user-rows').innerHTML = USER_GROUPS.map(({ role, title }) => {
+    const users = loadedUsers.filter(u => u.role === role).sort((a, b) => byName(a, b) * userSortDir);
+    const showDept = role === 'agent';
+    return `
+      <section class="user-group" data-role="${role}">
+        <h3>${title} <span class="count">${users.length}</span></h3>
+        <table class="card">
+          <thead><tr>
+            <th aria-sort="${ariaSort}"><button type="button" class="sort-header" data-sort="name">Name <span class="sort-arrow">${arrow}</span></button></th>
+            <th>Email</th>
+            ${showDept ? '<th>Department</th>' : ''}
+            <th>Created</th><th></th>
+          </tr></thead>
+          <tbody>
+            ${users.length ? users.map(u => `
+              <tr>
+                <td>${esc(u.name)}${u.id === me.id ? ' <span class="muted">(you)</span>' : ''}${u.is_protected ? ' <span class="badge main-admin" title="Set in .env. Cannot be deleted.">Main admin</span>' : ''}</td>
+                <td>${esc(u.email)} ${u.verified ? '' : '<span class="badge unverified" title="Has not clicked the verification link yet">Unverified</span>'}</td>
+                ${showDept ? `<td>${esc(u.department_name) || '<span class="muted">None</span>'}</td>` : ''}
+                <td>${fmtDate(u.created_at)}</td>
+                <td class="row-actions">
+                  <button class="secondary" data-edit-user="${u.id}">Edit</button>
+                  <button class="secondary" data-reset-user="${u.id}" title="Email this user a link to set a new password">Send reset link</button>
+                  ${u.id === me.id || u.is_protected ? '' : `<button class="danger" data-delete-user="${u.id}">Delete</button>`}
+                </td>
+              </tr>`).join('') : `<tr><td colspan="${showDept ? 5 : 4}" class="muted">No ${title.toLowerCase()} yet.</td></tr>`}
+          </tbody>
+        </table>
+      </section>`;
+  }).join('');
 }
+
+// Clicking any "Name" heading flips the order in all three tables
+$('#user-rows').addEventListener('click', e => {
+  if (!e.target.closest('.sort-header')) return;
+  userSortDir = -userSortDir;
+  renderUserRows();
+});
 
 function resetUserForm() {
   const form = $('#user-form');

@@ -288,6 +288,7 @@ function activityText(a, quoteLength) {
     case 'assigned': return `assigned ticket to <strong>${esc(a.details)}</strong>`;
     case 'unassigned': return `unassigned <strong>${esc(a.details)}</strong>`;
     case 'claimed': return 'claimed the ticket';
+    case 'released': return 'released the ticket';
     case 'comment': return `replied <span class="quote">“${esc(quote)}”</span>`;
     case 'deleted': return 'deleted a ticket';
     default: return esc(a.action);
@@ -656,6 +657,8 @@ async function openTicket(id) {
   const isAdmin = me.role === 'admin';
   // Claim = assign to yourself. Agents can only claim unassigned tickets; admins can take any ticket.
   const canClaim = t.can_work && t.status !== 'closed' && t.assigned_to !== me.id && (isAdmin || !t.assigned_to);
+  // Release = give back a ticket you hold, so it's unassigned again
+  const canRelease = t.can_work && t.status !== 'closed' && t.assigned_to === me.id;
   if (t.can_work) {
     controls = `
       <div class="admin-controls">
@@ -670,6 +673,7 @@ async function openTicket(id) {
         ${isAdmin ? '<label>Assigned to <select id="ctl-assignee"></select></label>' : ''}
         <button id="ctl-save">Save changes</button>
         ${canClaim ? '<button id="ctl-claim" class="success">Claim ticket</button>' : ''}
+        ${canRelease ? '<button id="ctl-release" class="secondary" title="Unassign yourself so someone else can claim it">Release</button>' : ''}
         ${isAdmin ? '<button id="ctl-delete" class="danger">Delete ticket</button>' : ''}
       </div>`;
   } else {
@@ -735,6 +739,7 @@ async function openTicket(id) {
     ...(isAdmin ? { assigned_to: $('#ctl-assignee').value ? Number($('#ctl-assignee').value) : null } : {}),
   }));
   $('#ctl-claim')?.addEventListener('click', () => updateTicket({ assigned_to: me.id }));
+  $('#ctl-release')?.addEventListener('click', () => updateTicket({ assigned_to: null }));
   $('#ctl-close')?.addEventListener('click', () => updateTicket({ status: 'closed' }));
   $('#ctl-delete')?.addEventListener('click', async () => {
     if (!confirm(`Delete ticket #${t.id}? This cannot be undone.`)) return;

@@ -25,6 +25,7 @@ function ticketUpdated(before, userId) {
   if (t.assigned_to !== before.assigned_to) {
     if (t.assigned_to === userId) log(userId, t, 'claimed');
     else if (t.assigned_to) log(userId, t, 'assigned', userName(t.assigned_to));
+    else if (before.assigned_to === userId) log(userId, t, 'released');
     else log(userId, t, 'unassigned', userName(before.assigned_to));
   }
 }

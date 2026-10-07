@@ -35,6 +35,7 @@ Log in with it and change it under **My account**.
 | Close ticket                        | Own only       | Own dept | Any |
 | Change status / priority / dept           | ❌             | Own dept | ✅ |
 | Claim a ticket (assign to yourself)         | ❌             | Own dept, unassigned only | ✅ |
+| Release a ticket you hold (unassign)        | ❌             | Own tickets | ✅ |
 | Assign a ticket to someone else             | ❌             | ❌    | ✅    |
 | Delete tickets                      | ❌             | ❌    | ✅    |
 | Add / edit / delete users           | ❌             | ❌    | ✅    |

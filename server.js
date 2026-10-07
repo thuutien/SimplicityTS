@@ -460,11 +460,13 @@ app.patch('/api/tickets/:id', requireAuth, (req, res) => {
   }
   const finalDepartment = updates.department_id ?? ticket.department_id;
   if (assigned_to !== undefined && assigned_to !== ticket.assigned_to && req.user.role !== 'admin') {
-    // Agents can't assign tickets; they can only claim an unassigned ticket for themselves.
-    if (assigned_to !== req.user.id) {
+    // Agents can't assign tickets; they can only claim an unassigned ticket for themselves,
+    // or release a ticket they hold.
+    const releasingOwn = assigned_to === null && ticket.assigned_to === req.user.id;
+    if (assigned_to !== req.user.id && !releasingOwn) {
       return res.status(403).json({ error: 'Only admins can assign tickets to someone else. Use "Claim ticket" to take it yourself.' });
     }
-    if (ticket.assigned_to) {
+    if (!releasingOwn && ticket.assigned_to) {
       return res.status(409).json({ error: `This ticket is already assigned to ${ticket.assigned_to_name}. Ask an admin to reassign it.` });
     }
   }

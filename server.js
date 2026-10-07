@@ -25,6 +25,7 @@ const ROLES = ['employee', 'agent', 'admin'];
 const STAFF_ROLES = ['agent', 'admin'];
 const ALLOWED_SIGNUP_DOMAIN = (process.env.ALLOWED_SIGNUP_DOMAIN || 'retailking.com').toLowerCase();
 const MIN_PASSWORD_LENGTH = 8;
+const REMEMBER_DAYS = Number(process.env.REMEMBER_DAYS || 90);
 
 app.set('trust proxy', 'loopback');
 app.use(express.json());
@@ -35,7 +36,9 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   rolling: true,
-  cookie: { httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 },
+  // No maxAge here: by default the login cookie ends when the browser closes.
+  // "Keep me logged in" sets a long maxAge at login (see /api/login).
+  cookie: { httpOnly: true, sameSite: 'lax' },
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -220,6 +223,9 @@ app.post('/api/login', loginLimiter, (req, res) => {
   req.session.regenerate(err => {
     if (err) return res.status(500).json({ error: 'Session error' });
     req.session.userId = user.id;
+    // "Keep me logged in": stay logged in for REMEMBER_DAYS after the last visit (rolling).
+    // Otherwise the cookie ends when the browser closes.
+    if (req.body.remember) req.session.cookie.maxAge = REMEMBER_DAYS * 24 * 60 * 60 * 1000;
     res.json({ ok: true });
   });
 });

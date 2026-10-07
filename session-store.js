@@ -1,7 +1,9 @@
 const session = require('express-session');
 const { db } = require('./db');
 
-const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// Sessions without "Keep me logged in" use a browser-session cookie; the server also forgets them
+// after this much inactivity, in case the browser keeps the cookie (e.g. restoring tabs).
+const DEFAULT_TTL_MS = 12 * 60 * 60 * 1000;
 
 // Keeps login sessions in SQLite so they survive restarts, and records which user
 // each session belongs to so we can sign a user out everywhere (e.g. after a password reset).

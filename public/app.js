@@ -56,7 +56,7 @@ $('#login-form').addEventListener('submit', async e => {
   const form = new FormData(e.target);
   $('#resend-verification').classList.add('hidden');
   try {
-    await api('POST', '/api/login', { email: form.get('email'), password: form.get('password') });
+    await api('POST', '/api/login', { email: form.get('email'), password: form.get('password'), remember: form.get('remember') === 'on' });
     e.target.reset();
     showNotice('#login-notice', '');
     me = await api('GET', '/api/me');

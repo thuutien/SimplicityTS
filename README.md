@@ -58,6 +58,9 @@ log in, their tickets and comments stay (shown as "Name (deleted)"), and their e
 - **New tickets:** choose a Request Type. "Production Request" (Location, Request: Work Cart / Empty Cart / RMA / Tech Issue, optional Additional Info) goes to Production; "Report Issue to IT" (Location, Issue Description) goes to IT Support. The title is generated automatically and priority starts at Medium.
 - **Admins** can create users with any email (no verification needed), edit them, set a password, or send them a reset link.
 - Passwords must be at least 8 characters. Changing or resetting a password signs the user out on other devices.
+- **Keep me logged in** (checked by default on the login page): stays logged in for 90 days after the last visit
+  (`REMEMBER_DAYS` in `.env`). Unchecked: the login ends when the browser closes or after 12 hours of inactivity;
+  use this on shared computers.
 
 ## Email
 

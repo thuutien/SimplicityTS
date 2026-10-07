@@ -1,7 +1,7 @@
 {
-  "name": "ticket-system",
-  "version": "1.0.0",
-  "description": "",
+  "name": "simplicityts",
+  "version": "1.0.1",
+  "description": "Simple ticket system with employee, agent and admin roles",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

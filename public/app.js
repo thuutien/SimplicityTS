@@ -770,6 +770,13 @@ $('#user-form').addEventListener('submit', async e => {
   }
 });
 
+// ---------- footer ----------
+
+$('#footer-year').textContent = new Date().getFullYear();
+fetch('/api/version').then(r => r.json()).then(({ version }) => {
+  $('#footer-version').textContent = `· v${version}`;
+}).catch(() => {});
+
 // ---------- routing & boot ----------
 
 // Handles links from emails (#verify/..., #reset/..., #ticket/...) and the auth links (#login, #register, #forgot).

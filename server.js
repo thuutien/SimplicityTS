@@ -230,6 +230,10 @@ app.post('/api/logout', (req, res) => {
 
 app.get('/api/me', requireAuth, (req, res) => res.json(req.user));
 
+// App version for the footer (no login needed). Bump "version" in package.json for each release.
+const { version: APP_VERSION } = require('./package.json');
+app.get('/api/version', (req, res) => res.json({ version: APP_VERSION }));
+
 // Self-registration: company email addresses only, always as an employee, must verify email before logging in.
 app.post('/api/register', emailLimiter, (req, res) => {
   const names = nameFields(req.body);

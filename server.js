@@ -382,10 +382,11 @@ app.get('/api/tickets', requireAuth, (req, res) => {
   res.json(db.prepare(sql).all(...params).map(t => ({ ...t, can_work: canWork(req.user, t) })));
 });
 
-// The two request types on the New ticket form, and the department each one goes to.
+// The two request types on the New ticket form. Each goes to the department linked to it by request_key
+// (set in db.js), so departments can be renamed freely.
 const REQUEST_TYPES = {
-  production: { department: 'Production' },
-  it: { department: 'IT Support' },
+  production: { label: 'Production Request' },
+  it: { label: 'Report Issue to IT' },
 };
 const PRODUCTION_REQUESTS = ['Work Cart', 'Empty Cart', 'RMA', 'Tech Issue'];
 
@@ -407,8 +408,8 @@ app.post('/api/tickets', requireAuth, (req, res) => {
     title = `IT issue – ${location}`;
   }
 
-  const department = db.prepare('SELECT id FROM departments WHERE name = ?').get(type.department);
-  if (!department) return res.status(500).json({ error: `The ${type.department} department is missing` });
+  const department = db.prepare('SELECT id FROM departments WHERE request_key = ?').get(req.body.request_type);
+  if (!department) return res.status(500).json({ error: `No department handles "${type.label}" requests` });
 
   // New tickets start at medium priority; agents can change it.
   const { lastInsertRowid } = db.prepare(`
@@ -608,7 +609,7 @@ app.get('/api/dashboard', requireAuth, requireStaff, (req, res) => {
   const requestTypes = db.prepare(`
     SELECT CASE
              WHEN t.request_item IS NOT NULL THEN t.request_item
-             WHEN d.name = 'IT Support' THEN 'IT issue'
+             WHEN d.request_key = 'it' THEN 'IT issue'
              ELSE 'Other'
            END AS type,
            COUNT(*) AS created,
@@ -686,7 +687,46 @@ app.get('/api/activity', requireAuth, requireStaff, (req, res) => {
 });
 
 app.get('/api/departments', requireAuth, (req, res) => {
-  res.json(db.prepare('SELECT id, name FROM departments ORDER BY name').all());
+  res.json(db.prepare('SELECT id, name, request_key FROM departments ORDER BY name').all());
+});
+
+// ----- Settings: departments (admin only) -----
+
+app.get('/api/settings/departments', requireAuth, requireAdmin, (req, res) => {
+  res.json(db.prepare(`
+    SELECT d.id, d.name, d.request_key,
+      (SELECT COUNT(*) FROM users u WHERE u.department_id = d.id AND u.role = 'agent' AND u.deleted_at IS NULL) AS agents,
+      (SELECT COUNT(*) FROM tickets t WHERE t.department_id = d.id AND t.status != 'closed') AS open_tickets,
+      (SELECT COUNT(*) FROM tickets t WHERE t.department_id = d.id) AS total_tickets
+    FROM departments d ORDER BY d.name
+  `).all().map(d => ({ ...d, request_type: REQUEST_TYPES[d.request_key]?.label || null })));
+});
+
+function departmentNameError(name, excludeId = null) {
+  if (!name) return 'Please enter a department name';
+  if (name.length > 50) return 'Department names can be at most 50 characters';
+  if (db.prepare('SELECT 1 FROM departments WHERE lower(name) = lower(?) AND id IS NOT ?').get(name, excludeId)) {
+    return 'A department with that name already exists';
+  }
+  return null;
+}
+
+app.post('/api/settings/departments', requireAuth, requireAdmin, (req, res) => {
+  const name = String(req.body.name || '').trim();
+  const error = departmentNameError(name);
+  if (error) return res.status(400).json({ error });
+  const { lastInsertRowid } = db.prepare('INSERT INTO departments (name) VALUES (?)').run(name);
+  res.status(201).json({ id: lastInsertRowid, name });
+});
+
+app.patch('/api/settings/departments/:id', requireAuth, requireAdmin, (req, res) => {
+  const department = db.prepare('SELECT * FROM departments WHERE id = ?').get(req.params.id);
+  if (!department) return res.status(404).json({ error: 'Department not found' });
+  const name = String(req.body.name || '').trim();
+  const error = departmentNameError(name, department.id);
+  if (error) return res.status(400).json({ error });
+  db.prepare('UPDATE departments SET name = ? WHERE id = ?').run(name, department.id);
+  res.json({ id: department.id, name });
 });
 
 // People a ticket can be assigned to (the client filters agents by the ticket's department)

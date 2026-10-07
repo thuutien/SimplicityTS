@@ -81,6 +81,7 @@
         <button data-nav="tickets">Tickets</button>
         <button data-nav="new">New ticket</button>
         <button data-nav="users" class="admin-only">Users</button>
+        <button data-nav="settings" class="admin-only">Settings</button>
       </nav>
       <div class="me">
         <button data-nav="account" class="link me-link" title="My account"><span id="me-name"></span></button>
@@ -259,6 +260,26 @@
           <p class="error" id="password-error"></p>
         </form>
 
+      </div>
+
+      <!-- Settings (admin) -->
+      <div id="settings-page" class="page">
+        <h2>Settings</h2>
+        <div class="card">
+          <h3>Departments</h3>
+          <p class="muted">Tickets belong to a department, and agents work on their own department's tickets.
+            Renaming a department keeps all its tickets and agents.</p>
+          <table class="dash-table">
+            <thead><tr><th>Name</th><th>New ticket form</th><th class="n">Agents</th><th class="n">Open tickets</th><th class="n">All tickets</th><th></th></tr></thead>
+            <tbody id="dept-rows"></tbody>
+          </table>
+          <form id="dept-add-form" class="inline-form">
+            <input name="name" placeholder="New department name" required maxlength="50" aria-label="New department name">
+            <button type="submit">Add department</button>
+          </form>
+          <p class="notice hidden" id="dept-notice"></p>
+          <p class="error" id="dept-error"></p>
+        </div>
       </div>
 
       <!-- Users (admin) -->

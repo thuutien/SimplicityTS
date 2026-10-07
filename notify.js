@@ -7,7 +7,7 @@ const label = s => String(s).replace('_', ' ').replace(/^./, c => c.toUpperCase(
 const getUser = id => id && db.prepare('SELECT id, first_name, name, email FROM users WHERE id = ? AND deleted_at IS NULL').get(id);
 
 const getTicket = id => db.prepare(`
-  SELECT t.*, d.name AS department_name FROM tickets t
+  SELECT t.*, d.name AS department_name, d.request_key FROM tickets t
   LEFT JOIN departments d ON d.id = t.department_id WHERE t.id = ?
 `).get(id);
 
@@ -102,14 +102,14 @@ function ticketUpdated(before, actorId) {
 // Database times are UTC ("YYYY-MM-DD HH:MM:SS"); show them in the server's local time.
 const fmtDate = s => new Date(s.replace(' ', 'T') + 'Z').toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
-const REQUEST_TYPE_NAMES = { Production: 'Production Request', 'IT Support': 'Report Issue to IT' };
+const REQUEST_TYPE_NAMES = { production: 'Production Request', it: 'Report Issue to IT' };
 
 // What was requested, so the email can be read on its own:
 // Ticket, Request type, Request, Location, Additional info (IT tickets: Issue description).
 function fullTicketDetails(t) {
   const rows = [
     ['Ticket', `#${t.id}`],
-    ['Request type', REQUEST_TYPE_NAMES[t.department_name] || t.department_name || 'None'],
+    ['Request type', REQUEST_TYPE_NAMES[t.request_key] || t.department_name || 'None'],
     ...(t.request_item ? [['Request', t.request_item]] : []),
     ...(t.location ? [['Location', t.location]] : []),
     ...(!t.request_item && !t.location ? [['Title', t.title]] : []), // tickets from before the request form

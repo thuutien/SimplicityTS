@@ -79,6 +79,14 @@ main { max-width: 1680px; margin: 24px auto; padding: 0 16px; }
 .dot.st-resolved, .seg.st-resolved { background: var(--st-resolved); }
 .dot.dept-it { background: var(--dept-it); }
 .dot.dept-prod { background: var(--dept-prod); }
+.dot.dept-other { background: #9ca3af; }
+
+/* Settings */
+.inline-form { display: flex; gap: 8px; margin-top: 16px; max-width: 480px; }
+.inline-form input { margin: 0; }
+.inline-form button { white-space: nowrap; }
+.rename-input { margin: 0; padding: 4px 8px; max-width: 260px; display: inline-block; }
+#settings-page h3 { margin-bottom: 6px; }
 .stack-bar { display: flex; gap: 2px; height: 8px; margin: 12px 0 4px; }
 .stack-bar .seg { border-radius: 4px; min-width: 6px; }
 .bar-rows { list-style: none; margin: 0; padding: 0; font-size: 14px; }

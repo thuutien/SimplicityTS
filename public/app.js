@@ -121,11 +121,7 @@ $('#reset-form').addEventListener('submit', async e => {
 // ---------- app shell ----------
 
 async function showApp() {
-  departments = await api('GET', '/api/departments');
-  document.querySelectorAll('.department-select').forEach(sel => {
-    sel.querySelectorAll('option:not([value=""])').forEach(o => o.remove());
-    sel.insertAdjacentHTML('beforeend', departments.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join(''));
-  });
+  await refreshDepartments();
   renderMe();
   $('#auth-view').classList.add('hidden');
   $('#app-view').classList.remove('hidden');
@@ -142,6 +138,23 @@ async function showApp() {
   }
 }
 
+// Loads the department list and fills every department dropdown (keeps each dropdown's selection)
+async function refreshDepartments() {
+  departments = await api('GET', '/api/departments');
+  document.querySelectorAll('.department-select').forEach(sel => {
+    const selected = sel.value;
+    sel.querySelectorAll('option:not([value=""])').forEach(o => o.remove());
+    sel.insertAdjacentHTML('beforeend', departments.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join(''));
+    sel.value = selected;
+  });
+}
+
+// Color dot class for a department (by name): the two built-in departments have their own colors
+function deptColorClass(name) {
+  const key = departments.find(d => d.name === name)?.request_key;
+  return { it: 'dept-it', production: 'dept-prod' }[key] || 'dept-other';
+}
+
 function renderMe() {
   $('#me-name').textContent = me.name;
   $('#me-role').textContent = label(me.role);
@@ -152,6 +165,7 @@ function renderMe() {
 
 function navigate(page) {
   if (page === 'dashboard' && !isStaff()) page = 'tickets';
+  if (page === 'settings' && me.role !== 'admin') page = 'tickets';
   clearHash();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   $(`#${page}-page`).classList.add('active');
@@ -159,6 +173,7 @@ function navigate(page) {
   if (page === 'dashboard') loadDashboard();
   if (page === 'tickets') loadTickets();
   if (page === 'users') loadUsers();
+  if (page === 'settings') loadSettings();
   if (page === 'account') loadAccount();
 }
 
@@ -208,7 +223,7 @@ async function loadSummary() {
       </div>`
     : '';
 
-  const deptClass = name => ({ 'IT Support': 'dept-it', Production: 'dept-prod' })[name] || 'dept-other';
+  const deptClass = deptColorClass;
   const maxRequest = Math.max(1, ...s.requests_today.map(r => r.count));
 
   $('#summary-panel').innerHTML = `
@@ -448,7 +463,7 @@ async function loadDashboard() {
   }
 
   const tile = (num, lbl, tone) => `<div class="tile ${tone}"><div class="num">${num}</div><div class="lbl">${esc(lbl)}</div></div>`;
-  const deptDot = name => `<span class="dot ${({ 'IT Support': 'dept-it', Production: 'dept-prod' })[name] || ''}" aria-hidden="true"></span>`;
+  const deptDot = name => `<span class="dot ${deptColorClass(name)}" aria-hidden="true"></span>`;
   const empty = (cols, text = 'No tickets in this range.') => `<tr><td colspan="${cols}" class="muted">${text}</td></tr>`;
   const totalTypes = d.request_types.reduce((sum, r) => sum + r.created, 0) || 1;
   const fmtDay = day => new Date(day + 'T00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
@@ -933,6 +948,74 @@ $('#user-form').addEventListener('submit', async e => {
     loadUsers();
   } catch (err) {
     $('#user-form-error').textContent = err.message;
+  }
+});
+
+// ---------- settings (admin) ----------
+
+async function loadSettings() {
+  showNotice('#dept-notice', '');
+  $('#dept-error').textContent = '';
+  const rows = await api('GET', '/api/settings/departments');
+  $('#dept-rows').innerHTML = rows.map(d => `
+    <tr data-dept="${d.id}">
+      <td class="dept-name"><span class="dot ${deptColorClass(d.name)}" aria-hidden="true"></span><span>${esc(d.name)}</span></td>
+      <td>${d.request_type ? esc(d.request_type) : '<span class="muted">Not on the form</span>'}</td>
+      <td class="n">${d.agents}</td>
+      <td class="n">${d.open_tickets}</td>
+      <td class="n">${d.total_tickets}</td>
+      <td class="row-actions"><button type="button" class="secondary" data-rename="${d.id}">Rename</button></td>
+    </tr>`).join('');
+}
+
+// Rename: swap the name for an input with Save / Cancel
+$('#dept-rows').addEventListener('click', async e => {
+  const row = e.target.closest('tr[data-dept]');
+  if (!row) return;
+  const id = row.dataset.dept;
+  const nameCell = row.querySelector('.dept-name');
+
+  if (e.target.closest('[data-rename]')) {
+    const current = departments.find(d => String(d.id) === id)?.name || '';
+    nameCell.innerHTML = `<input class="rename-input" maxlength="50" value="${esc(current)}" aria-label="Department name">`;
+    e.target.closest('td').innerHTML = '<button type="button" data-save>Save</button> <button type="button" class="secondary" data-cancel>Cancel</button>';
+    nameCell.querySelector('input').focus();
+    nameCell.querySelector('input').select();
+    return;
+  }
+  if (e.target.closest('[data-cancel]')) return loadSettings();
+  if (e.target.closest('[data-save]')) {
+    try {
+      const name = nameCell.querySelector('input').value;
+      await api('PATCH', `/api/settings/departments/${id}`, { name });
+      await refreshDepartments();
+      await loadSettings();
+      showNotice('#dept-notice', `Department renamed to "${name.trim()}".`);
+    } catch (err) {
+      $('#dept-error').textContent = err.message;
+    }
+  }
+});
+
+// Enter saves, Escape cancels while renaming
+$('#dept-rows').addEventListener('keydown', e => {
+  if (!e.target.classList.contains('rename-input')) return;
+  if (e.key === 'Enter') e.target.closest('tr').querySelector('[data-save]').click();
+  if (e.key === 'Escape') loadSettings();
+});
+
+$('#dept-add-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const name = e.target.elements.name.value;
+  try {
+    await api('POST', '/api/settings/departments', { name });
+    e.target.reset();
+    await refreshDepartments();
+    await loadSettings();
+    showNotice('#dept-notice', `Department "${name.trim()}" added. You can now put agents in it on the Users page.`);
+  } catch (err) {
+    showNotice('#dept-notice', '');
+    $('#dept-error').textContent = err.message;
   }
 });
 

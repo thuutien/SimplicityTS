@@ -42,6 +42,11 @@ Log in with it and change it under **My account**.
 
 ## Departments
 
+Admins can add and rename departments under **Settings**. Renaming keeps all tickets and agents.
+The two request types on the New ticket form stay linked to their department after a rename:
+"Production Request" → the Production department, "Report Issue to IT" → the IT Support department.
+New departments can have agents and receive tickets moved to them, but have no request type on the form.
+
 There are two departments: **IT Support** and **Production**. Every ticket belongs to one, chosen when it is
 created. Admins can put each agent in a department. Agents can see all tickets, but can only work on
 (update, assign, comment on) tickets in their own department; other tickets are read-only for them.

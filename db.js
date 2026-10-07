@@ -108,8 +108,20 @@ db.exec(`
     name TEXT NOT NULL UNIQUE
   );
 `);
-for (const name of ['IT Support', 'Production']) {
-  db.prepare('INSERT OR IGNORE INTO departments (name) VALUES (?)').run(name);
+// request_key links a department to a request type on the New ticket form ('production' / 'it'),
+// so departments can be renamed without breaking ticket routing.
+if (addColumnIfMissing('departments', 'request_key', 'TEXT')) {
+  db.exec(`
+    UPDATE departments SET request_key = 'it' WHERE name = 'IT Support';
+    UPDATE departments SET request_key = 'production' WHERE name = 'Production';
+  `);
+}
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_departments_request_key ON departments(request_key)');
+// Default departments, only on a brand-new database (so renamed departments don't come back)
+if (db.prepare('SELECT COUNT(*) AS n FROM departments').get().n === 0) {
+  const insert = db.prepare('INSERT INTO departments (name, request_key) VALUES (?, ?)');
+  insert.run('IT Support', 'it');
+  insert.run('Production', 'production');
 }
 
 // Returns true if the column was added.

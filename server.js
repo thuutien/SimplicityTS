@@ -807,10 +807,10 @@ app.get('/api/assignees', requireAuth, requireStaff, (req, res) => {
 app.get('/api/users', requireAuth, requireAdmin, (req, res) => {
   res.json(db.prepare(
     `SELECT u.id, u.first_name, u.last_name, u.name, u.email, u.role, u.department_id, d.name AS department_name,
-            u.created_at, u.email_verified_at IS NOT NULL AS verified
+            u.created_at, u.email_verified_at IS NOT NULL AS verified, u.is_protected
      FROM users u LEFT JOIN departments d ON d.id = u.department_id
      WHERE u.deleted_at IS NULL ORDER BY u.first_name, u.last_name`
-  ).all().map(u => ({ ...u, verified: !!u.verified })));
+  ).all().map(u => ({ ...u, verified: !!u.verified, is_protected: !!u.is_protected })));
 });
 
 function validateUserInput(body, { passwordRequired }) {
@@ -857,6 +857,16 @@ app.patch('/api/users/:id', requireAuth, requireAdmin, (req, res) => {
 
   if (db.prepare('SELECT 1 FROM users WHERE email = ? AND id != ?').get(input.email, user.id)) {
     return res.status(409).json({ error: 'Email already in use' });
+  }
+  // The main admin (ADMIN_EMAIL in .env) always stays an admin, and only they can change their own email or password.
+  if (user.is_protected) {
+    if (input.role !== 'admin') return res.status(403).json({ error: 'The main admin account must stay an admin' });
+    if (user.id !== req.user.id && input.email !== user.email) {
+      return res.status(403).json({ error: 'Only the main admin can change their own email address' });
+    }
+    if (user.id !== req.user.id && input.password) {
+      return res.status(403).json({ error: 'Only the main admin can change their own password. Use "Send reset link" instead.' });
+    }
   }
   if (user.role === 'admin' && input.role !== 'admin') {
     if (user.id === req.user.id) return res.status(400).json({ error: 'You cannot remove your own admin role' });
@@ -926,6 +936,7 @@ app.delete('/api/users/:id', requireAuth, requireAdmin, (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL').get(req.params.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
   if (user.id === req.user.id) return res.status(400).json({ error: 'You cannot delete your own account' });
+  if (user.is_protected) return res.status(403).json({ error: 'This is the main admin account (set in .env) and cannot be deleted' });
   if (user.role === 'admin' && activeAdminCount() <= 1) {
     return res.status(400).json({ error: 'There must be at least one admin' });
   }

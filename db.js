@@ -202,6 +202,10 @@ function verifyPassword(password, stored) {
   return crypto.timingSafeEqual(candidate, Buffer.from(hash, 'hex'));
 }
 
+// The main admin (from ADMIN_EMAIL in .env) is protected: it can't be deleted or lose its admin role,
+// and other admins can't change its email or password.
+addColumnIfMissing('users', 'is_protected', 'INTEGER NOT NULL DEFAULT 0');
+
 // On first run, create the first admin from ADMIN_EMAIL / ADMIN_PASSWORD in .env.
 // If no password is set, a random one is generated and printed once to the console.
 const { count } = db.prepare('SELECT COUNT(*) AS count FROM users').get();
@@ -209,12 +213,21 @@ if (count === 0) {
   const email = (process.env.ADMIN_EMAIL || 'admin@example.com').trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD || crypto.randomBytes(9).toString('base64url');
   db.prepare(`
-    INSERT INTO users (first_name, last_name, name, email, password_hash, role, email_verified_at)
-    VALUES ('Admin', 'User', 'Admin User', ?, ?, 'admin', datetime('now'))
+    INSERT INTO users (first_name, last_name, name, email, password_hash, role, email_verified_at, is_protected)
+    VALUES ('Admin', 'User', 'Admin User', ?, ?, 'admin', datetime('now'), 1)
   `).run(email, hashPassword(password));
   console.log(process.env.ADMIN_PASSWORD
     ? `Created first admin account: ${email} (password from ADMIN_PASSWORD in .env)`
     : `Created first admin account: ${email} / ${password}  <-- write this down and change it after logging in`);
+}
+
+// Existing databases: the admin whose email matches ADMIN_EMAIL becomes the protected main admin.
+if (process.env.ADMIN_EMAIL) {
+  const { changes } = db.prepare(`
+    UPDATE users SET is_protected = 1
+    WHERE email = ? AND role = 'admin' AND deleted_at IS NULL AND is_protected = 0
+  `).run(process.env.ADMIN_EMAIL.trim().toLowerCase());
+  if (changes) console.log(`Protected main admin: ${process.env.ADMIN_EMAIL.trim().toLowerCase()} (from ADMIN_EMAIL in .env)`);
 }
 
 module.exports = { db, hashPassword, verifyPassword, getSetting };

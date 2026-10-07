@@ -193,6 +193,8 @@ label.checkbox input { width: auto; margin: 0; }
 .hint { font-size: 13px; color: #6b7280; margin: -4px 0 12px; }
 .notice { color: #166534; background: #dcfce7; border-radius: 6px; padding: 8px 12px; font-size: 14px; margin: 8px 0 0; }
 .me-link { color: #fff !important; font-weight: 600; }
+.badge.main-admin { background: #1f2937; color: #fff; }
+input:disabled, select:disabled { background: #f3f4f6; color: #6b7280; cursor: not-allowed; }
 .badge.unverified { background: #fef3c7; color: #92400e; }
 
 label { display: block; margin-bottom: 12px; font-size: 14px; font-weight: 500; }

@@ -61,6 +61,8 @@ log in, their tickets and comments stay (shown as "Name (deleted)"), and their e
 - **My account:** everyone can change their name and password. Only admins can change a user's email (Users page).
 - **Forgot password:** on the login page; sends a reset link that works once and expires after 30 minutes.
 - **New tickets:** choose a Request Type. "Production Request" (Location, Request: Work Cart / Empty Cart / RMA / Tech Issue, optional Additional Info) goes to Production; "Report Issue to IT" (Location, Issue Description) goes to IT Support. The title is generated automatically and priority starts at Medium.
+- **Main admin:** the admin whose email is `ADMIN_EMAIL` in `.env` cannot be deleted or lose its admin role, and only
+  they can change their own email and password (other admins can send them a reset link).
 - **Admins** can create users with any email (no verification needed), edit them, set a password, or send them a reset link.
 - Passwords must be at least 8 characters. Changing or resetting a password signs the user out on other devices.
 - **Keep me logged in** (checked by default on the login page): stays logged in for 90 days after the last visit

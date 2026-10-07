@@ -846,7 +846,7 @@ async function loadUsers() {
   usersById = Object.fromEntries(users.map(u => [u.id, u]));
   $('#user-rows').innerHTML = users.map(u => `
     <tr>
-      <td>${esc(u.name)}${u.id === me.id ? ' <span class="muted">(you)</span>' : ''}</td>
+      <td>${esc(u.name)}${u.id === me.id ? ' <span class="muted">(you)</span>' : ''}${u.is_protected ? ' <span class="badge main-admin" title="Set in .env. Cannot be deleted.">Main admin</span>' : ''}</td>
       <td>${esc(u.email)} ${u.verified ? '' : '<span class="badge unverified" title="Has not clicked the verification link yet">Unverified</span>'}</td>
       <td>${badge(u.role)}</td>
       <td>${u.role === 'agent' ? (esc(u.department_name) || '<span class="muted">None</span>') : '<span class="muted">-</span>'}</td>
@@ -854,7 +854,7 @@ async function loadUsers() {
       <td class="row-actions">
         <button class="secondary" data-edit-user="${u.id}">Edit</button>
         <button class="secondary" data-reset-user="${u.id}" title="Email this user a link to set a new password">Send reset link</button>
-        ${u.id === me.id ? '' : `<button class="danger" data-delete-user="${u.id}">Delete</button>`}
+        ${u.id === me.id || u.is_protected ? '' : `<button class="danger" data-delete-user="${u.id}">Delete</button>`}
       </td>
     </tr>`).join('');
   resetUserForm();
@@ -863,6 +863,7 @@ async function loadUsers() {
 function resetUserForm() {
   const form = $('#user-form');
   form.reset();
+  lockMainAdminFields(form, false, false);
   form.elements.id.value = '';
   form.elements.password.required = true;
   $('#user-form-title').textContent = 'Add user';
@@ -878,6 +879,17 @@ function toggleDepartmentField() {
 }
 $('#user-form').elements.role.addEventListener('change', toggleDepartmentField);
 
+// The main admin (from .env) always stays an admin; only they can change their own email and password.
+function lockMainAdminFields(form, isProtected, isSelf) {
+  form.elements.role.disabled = isProtected;
+  form.elements.email.disabled = isProtected && !isSelf;
+  form.elements.password.disabled = isProtected && !isSelf;
+  $('#main-admin-note').classList.toggle('hidden', !isProtected);
+  $('#main-admin-note').textContent = isSelf
+    ? 'You are the main admin (set in .env): your account always stays an admin and cannot be deleted.'
+    : 'This is the main admin (set in .env): it cannot be deleted or lose its admin role, and only they can change its email or password. Use "Send reset link" if they forgot their password.';
+}
+
 function editUser(user) {
   const form = $('#user-form');
   form.elements.id.value = user.id;
@@ -889,6 +901,7 @@ function editUser(user) {
   toggleDepartmentField();
   form.elements.password.value = '';
   form.elements.password.required = false;
+  lockMainAdminFields(form, user.is_protected, user.id === me.id);
   $('#user-form-title').textContent = `Edit ${user.name}`;
   $('#password-label').textContent = 'New password (leave blank to keep current)';
   $('#user-form-submit').textContent = 'Save changes';
@@ -933,6 +946,7 @@ $('#user-form-cancel').addEventListener('click', resetUserForm);
 $('#user-form').addEventListener('submit', async e => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));
+  for (const el of e.target.elements) if (el.disabled && el.name) data[el.name] = el.type === 'password' ? '' : el.value;
   const id = data.id;
   delete data.id;
   try {

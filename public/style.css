@@ -342,6 +342,10 @@ table { width: 100%; border-collapse: collapse; padding: 0; overflow: hidden; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 14px; }
 th { background: var(--surface-2); font-weight: 600; }
 tbody tr.clickable { cursor: pointer; }
+/* Sortable column headings */
+.sort-header { background: none; border: none; padding: 0; color: inherit; font: inherit; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.sort-header:hover { background: none; color: var(--link); }
+.sort-arrow { font-size: 10px; color: var(--link); min-width: 10px; }
 tbody tr.clickable:hover { background: var(--surface-3); }
 
 /* Badges: light theme */

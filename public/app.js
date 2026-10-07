@@ -929,10 +929,43 @@ $('#password-form').addEventListener('submit', async e => {
 
 let usersById = {};
 
+// Users table sorting: by name (A–Z) or by role (Admin, Agent, Employee); click a heading again to reverse
+let userSort = { key: 'name', dir: 1 };
+const ROLE_RANK = { admin: 0, agent: 1, employee: 2 };
+const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+
+function sortUsers(users) {
+  return [...users].sort((a, b) => {
+    const primary = userSort.key === 'role' ? ROLE_RANK[a.role] - ROLE_RANK[b.role] : byName(a, b);
+    // Within the same role, keep names A–Z
+    return primary !== 0 ? primary * userSort.dir : byName(a, b);
+  });
+}
+
+function renderSortHeaders() {
+  document.querySelectorAll('#users-page [data-sort-col]').forEach(th => {
+    const active = th.dataset.sortCol === userSort.key;
+    th.setAttribute('aria-sort', active ? (userSort.dir === 1 ? 'ascending' : 'descending') : 'none');
+    th.querySelector('.sort-arrow').textContent = active ? (userSort.dir === 1 ? '▲' : '▼') : '';
+  });
+}
+
+document.querySelectorAll('#users-page .sort-header').forEach(btn => btn.addEventListener('click', () => {
+  userSort = btn.dataset.sort === userSort.key ? { key: userSort.key, dir: -userSort.dir } : { key: btn.dataset.sort, dir: 1 };
+  renderUserRows();
+}));
+
+let loadedUsers = [];
 async function loadUsers() {
-  const users = await api('GET', '/api/users');
-  usersById = Object.fromEntries(users.map(u => [u.id, u]));
-  $('#user-rows').innerHTML = users.map(u => `
+  loadedUsers = await api('GET', '/api/users');
+  usersById = Object.fromEntries(loadedUsers.map(u => [u.id, u]));
+  renderUserRows();
+  resetUserForm();
+}
+
+function renderUserRows() {
+  renderSortHeaders();
+  $('#user-rows').innerHTML = sortUsers(loadedUsers).map(u => `
     <tr>
       <td>${esc(u.name)}${u.id === me.id ? ' <span class="muted">(you)</span>' : ''}${u.is_protected ? ' <span class="badge main-admin" title="Set in .env. Cannot be deleted.">Main admin</span>' : ''}</td>
       <td>${esc(u.email)} ${u.verified ? '' : '<span class="badge unverified" title="Has not clicked the verification link yet">Unverified</span>'}</td>
@@ -945,7 +978,6 @@ async function loadUsers() {
         ${u.id === me.id || u.is_protected ? '' : `<button class="danger" data-delete-user="${u.id}">Delete</button>`}
       </td>
     </tr>`).join('');
-  resetUserForm();
 }
 
 function resetUserForm() {

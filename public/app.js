@@ -818,8 +818,8 @@ async function openTicket(id) {
     </div>
     ${t.location || t.request_item ? `
       <div class="request-details">
-        ${t.request_item ? `<div><span class="muted">Request</span><strong>${esc(t.request_item)}</strong></div>` : ''}
-        ${t.location ? `<div><span class="muted">Location</span><strong>${esc(t.location)}</strong></div>` : ''}
+        ${t.request_item ? `<div class="request-chip"><span class="request-chip-label">Request</span><strong>${esc(t.request_item)}</strong></div>` : ''}
+        ${t.location ? `<div class="request-chip"><span class="request-chip-label">Location</span><strong>${esc(t.location)}</strong></div>` : ''}
       </div>` : ''}
     ${t.description ? `
       <div class="info-callout">

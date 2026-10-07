@@ -283,9 +283,12 @@ body { padding-bottom: 36px; }
 .auth-links { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; font-size: 14px; }
 .auth-links a { color: var(--link); text-decoration: none; }
 .auth-links a:hover { text-decoration: underline; }
-.request-details { display: flex; flex-wrap: wrap; gap: 24px; margin-bottom: 12px; }
-.request-details div { display: flex; flex-direction: column; gap: 2px; }
-.request-details .muted, .field-label { font-size: 13px; }
+/* Request and Location: highlighted like the Additional info box */
+.request-details { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+.request-chip { display: flex; flex-direction: column; gap: 4px; min-width: 160px; background: var(--callout-bg); border: 1px solid var(--callout-border); border-left: 4px solid var(--callout-edge); border-radius: 6px; padding: 10px 14px; }
+.request-chip-label { font-size: 12px; font-weight: 700; color: var(--callout-label); text-transform: uppercase; letter-spacing: 0.04em; }
+.request-chip strong { font-size: 16px; color: var(--text-strong); }
+.field-label { font-size: 13px; }
 .field-label { margin-bottom: 4px; }
 .request-fields { border: none; padding: 0; margin: 0; min-width: 0; }
 .input-short { max-width: 280px; }

@@ -35,8 +35,7 @@ try {
     if ([version]($nodeVersion.TrimStart('v')) -lt [version]'22.13.0') { throw "Node.js $nodeVersion is too old. Install Node.js 24 LTS." }
     Write-Ok "Node.js $nodeVersion ($node)"
 
-    $nssm = (Get-Command nssm -ErrorAction SilentlyContinue).Source
-    if (-not $nssm -and (Test-Path (Join-Path $AppDir 'tools\nssm.exe'))) { $nssm = Join-Path $AppDir 'tools\nssm.exe' }
+    $nssm = Find-Nssm
     if (-not $nssm) { throw 'NSSM was not found. Install it with "winget install NSSM.NSSM" (then open a new window), or put nssm.exe in the tools folder.' }
     Write-Ok "NSSM ($nssm)"
 

@@ -44,6 +44,82 @@ function Invoke-Git {
     & git -c "safe.directory=$safeDir" -C $AppDir @args
 }
 
+# Finds nssm.exe (on PATH or in the app's tools folder). Returns $null if not found.
+function Find-Nssm {
+    $nssm = (Get-Command nssm -ErrorAction SilentlyContinue).Source
+    if (-not $nssm -and (Test-Path (Join-Path $AppDir 'tools\nssm.exe'))) { $nssm = Join-Path $AppDir 'tools\nssm.exe' }
+    return $nssm
+}
+
+function Get-ServiceState([string]$Name) {
+    $svc = Get-Service -Name $Name -ErrorAction SilentlyContinue
+    if ($svc) { return $svc.Status.ToString() }
+    return 'Missing'
+}
+
+# Waits until the service reports Stopped. Returns $true/$false.
+function Wait-ServiceStopped([string]$Name, [int]$Seconds) {
+    for ($i = 0; $i -lt $Seconds; $i++) {
+        if ((Get-ServiceState $Name) -eq 'Stopped') { return $true }
+        Start-Sleep -Seconds 1
+    }
+    return ((Get-ServiceState $Name) -eq 'Stopped')
+}
+
+# Stops the service even when Windows refuses (e.g. NSSM has it "Paused" because the app kept crashing):
+#   1. Stop-Service   2. nssm stop   3. end the service's processes (NSSM and the node.exe it started)
+function Stop-AppService([string]$Name) {
+    if ((Get-ServiceState $Name) -eq 'Stopped') { return }
+
+    try {
+        Stop-Service -Name $Name -ErrorAction Stop
+        if (Wait-ServiceStopped $Name 20) { return }
+    } catch {
+        Write-Warn "Windows could not stop the service ($((Get-ServiceState $Name))): $($_.Exception.Message)"
+    }
+
+    $nssm = Find-Nssm
+    if ($nssm) {
+        Write-Warn 'Asking NSSM to stop it...'
+        & $nssm stop $Name | Out-Null
+        if (Wait-ServiceStopped $Name 20) { return }
+    }
+
+    Write-Warn 'Still running: ending the service processes...'
+    $svc = Get-CimInstance Win32_Service -Filter "Name='$Name'" -ErrorAction SilentlyContinue
+    if ($svc -and $svc.ProcessId -gt 0) {
+        # node.exe (and anything else) started by NSSM first, then NSSM itself
+        Get-CimInstance Win32_Process -Filter "ParentProcessId=$($svc.ProcessId)" -ErrorAction SilentlyContinue |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+        Stop-Process -Id $svc.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    if (-not (Wait-ServiceStopped $Name 15)) {
+        throw "Could not stop the $Name service (status: $(Get-ServiceState $Name)). Restart the server, then run the update again."
+    }
+}
+
+function Start-AppService([string]$Name) {
+    try {
+        Start-Service -Name $Name -ErrorAction Stop
+    } catch {
+        $nssm = Find-Nssm
+        if (-not $nssm) { throw }
+        Write-Warn "Start-Service failed ($($_.Exception.Message)); asking NSSM to start it..."
+        & $nssm start $Name | Out-Null
+    }
+}
+
+# Prints the service status and the end of the app log, to help explain a failed start.
+function Show-ServiceDiagnostics([string]$Name) {
+    Write-Host ""
+    Write-Host "    Service status: $(Get-ServiceState $Name)"
+    $logFile = Join-Path $AppDir 'logs\service.log'
+    if (Test-Path $logFile) {
+        Write-Host '    Last lines of logs\service.log:'
+        Get-Content $logFile -Tail 20 | ForEach-Object { Write-Host "      $_" }
+    }
+}
+
 # Checks that the app answers on its port. Returns $true/$false.
 function Test-AppResponds([int]$Port, [int]$Seconds = 20) {
     for ($i = 0; $i -lt $Seconds; $i++) {

@@ -69,8 +69,8 @@ try {
 
     # ----- 3. Stop, update, start -----
     if ($service) {
-        Write-Step "Stopping service $ServiceName"
-        Stop-Service -Name $ServiceName
+        Write-Step "Stopping service $ServiceName (status: $(Get-ServiceState $ServiceName))"
+        Stop-AppService $ServiceName   # stops it even if Windows refuses; nothing is changed if this fails
         Write-Ok 'Stopped.'
     } else {
         Write-Warn "Service '$ServiceName' is not installed; only the files will be updated."
@@ -99,11 +99,12 @@ try {
     $port = [int](Get-EnvValue 'PORT' '5000')
     if ($updateOk -and $service) {
         Write-Step "Starting service $ServiceName"
-        Start-Service -Name $ServiceName
+        Start-AppService $ServiceName
         if (Test-AppResponds $port) {
             Write-Ok "The app is running at http://localhost:$port"
         } else {
             Write-Err "The app did not respond on port $port after the update."
+            Show-ServiceDiagnostics $ServiceName
             $updateOk = $false
         }
     }
@@ -111,12 +112,12 @@ try {
     # ----- 4. Roll back if something went wrong -----
     if (-not $updateOk) {
         Write-Step "Going back to the previous version ($($current.Substring(0, 7)))"
-        if ($service) { Stop-Service -Name $ServiceName -ErrorAction SilentlyContinue }
+        if ($service) { try { Stop-AppService $ServiceName } catch { Write-Err $_.Exception.Message } }
         Invoke-Git reset --hard --quiet $current
         Push-Location $AppDir
         try { & npm ci --omit=dev --no-audit --no-fund } finally { Pop-Location }
         if ($service) {
-            Start-Service -Name $ServiceName
+            Start-AppService $ServiceName
             if (Test-AppResponds $port) { Write-Ok 'Previous version is running again.' }
             else { Write-Err 'The previous version did not start either. Check the log in the logs folder.' }
         }

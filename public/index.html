@@ -284,19 +284,20 @@
         <details class="card settings-section" data-section="email">
           <summary><h3>Email</h3><span class="summary-hint">Mail server, sender and links in emails</span></summary>
         <form id="email-settings-form" autocomplete="off">
-          <p class="muted">How the app sends emails (ticket alerts, password resets, sign-up links).
-            Fields marked <span class="src-tag">from .env</span> are using the value in the server's .env file;
-            saving a value here overrides it, and clearing a field goes back to .env.</p>
+          <p class="muted">Settings for the emails the app sends (ticket alerts, password resets, sign-up links).
+            The mail server itself is set in the server's .env file.</p>
 
-          <h4>Links and sender</h4>
           <label>App address for email links <span class="src" data-src="app_url"></span>
             <input name="app_url" placeholder="http://192.168.1.50:5000">
           </label>
           <p class="hint">The address people type to open the app. Buttons in emails link here.</p>
-          <div class="row">
-            <label>Sender name <span class="src" data-src="app_name"></span><input name="app_name" maxlength="80" placeholder="Retail King Helpdesk"></label>
-            <label>From address <span class="src" data-src="mail_from"></span><input name="mail_from" type="email" placeholder="Same as the username"></label>
-          </div>
+          <label>Sender name <span class="src" data-src="app_name"></span><input name="app_name" maxlength="80" placeholder="Retail King Helpdesk"></label>
+          <p class="hint">The name people see as the sender of every email.</p>
+
+          <!-- Hidden for now: From address and mail server settings. Remove "hidden" to show them again;
+               saving keeps their current values either way. -->
+          <div class="hidden" data-hidden-for-now>
+          <label>From address <span class="src" data-src="mail_from"></span><input name="mail_from" type="email" placeholder="Same as the username"></label>
 
           <h4>Mail server (SMTP)</h4>
           <div class="row">
@@ -310,6 +311,7 @@
           </div>
           <p class="hint">For Gmail use an App Password (Google account &gt; Security &gt; 2-Step Verification &gt; App passwords), not your normal password.
             Leave the password blank to keep the current one.</p>
+          </div>
 
           <div class="form-actions">
             <button type="submit">Save email settings</button>

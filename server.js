@@ -14,6 +14,7 @@ const { db, hashPassword, verifyPassword, getSetting } = require('./db');
 const { SqliteStore, destroyUserSessions } = require('./session-store');
 const { queueEmail, startMailer, APP_URL, APP_NAME } = require('./mailer');
 const notify = require('./notify');
+const activity = require('./activity');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -405,6 +406,7 @@ app.post('/api/tickets', requireAuth, (req, res) => {
     VALUES (?, ?, 'medium', ?, ?, ?, ?)
   `).run(title, description, department.id, location, requestItem, req.user.id);
   notify.ticketCreated(lastInsertRowid, req.user.id);
+  activity.ticketCreated(lastInsertRowid, req.user.id);
   res.status(201).json(db.prepare(`${TICKET_SELECT} WHERE t.id = ?`).get(lastInsertRowid));
 });
 
@@ -471,12 +473,15 @@ app.patch('/api/tickets/:id', requireAuth, (req, res) => {
   db.prepare(`UPDATE tickets SET ${sets}, updated_at = datetime('now') WHERE id = ?`)
     .run(...Object.values(updates), ticket.id);
   notify.ticketUpdated(ticket, req.user.id);
+  activity.ticketUpdated(ticket, req.user.id);
   res.json(db.prepare(`${TICKET_SELECT} WHERE t.id = ?`).get(ticket.id));
 });
 
 app.delete('/api/tickets/:id', requireAuth, requireAdmin, (req, res) => {
-  const { changes } = db.prepare('DELETE FROM tickets WHERE id = ?').run(req.params.id);
-  if (!changes) return res.status(404).json({ error: 'Ticket not found' });
+  const ticket = db.prepare('SELECT id, title FROM tickets WHERE id = ?').get(req.params.id);
+  if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+  db.prepare('DELETE FROM tickets WHERE id = ?').run(ticket.id);
+  activity.ticketDeleted(ticket, req.user.id);
   res.json({ ok: true });
 });
 
@@ -492,6 +497,7 @@ app.post('/api/tickets/:id/comments', requireAuth, (req, res) => {
   const { lastInsertRowid: commentId } = db.prepare('INSERT INTO comments (ticket_id, user_id, body) VALUES (?, ?, ?)').run(ticket.id, req.user.id, body);
   db.prepare("UPDATE tickets SET updated_at = datetime('now') WHERE id = ?").run(ticket.id);
   notify.commentAdded(ticket.id, req.user.id, body, commentId);
+  activity.commentAdded(ticket, req.user.id, body);
   res.status(201).json({ ok: true });
 });
 
@@ -538,6 +544,37 @@ app.get('/api/summary', requireAuth, requireStaff, (req, res) => {
   `).all(from, to);
 
   res.json({ today, open, departments, requests_today: requestsToday });
+});
+
+// Agent activity: actions by agents and admins, newest first.
+// Filters: from/to (UTC "YYYY-MM-DD HH:MM:SS", the viewer's chosen day), q (agent name), limit/offset for paging.
+app.get('/api/activity', requireAuth, requireStaff, (req, res) => {
+  const utcTime = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+  const where = ["u.role IN ('agent', 'admin')"];
+  const params = [];
+  if (utcTime.test(req.query.from || '') && utcTime.test(req.query.to || '')) {
+    where.push('a.created_at >= ? AND a.created_at < ?');
+    params.push(req.query.from, req.query.to);
+  }
+  const q = String(req.query.q || '').trim();
+  if (q) {
+    // "!" escapes % and _ so they match literally
+    where.push("(u.name LIKE ? ESCAPE '!' OR u.email LIKE ? ESCAPE '!')");
+    const like = `%${q.replace(/[!%_]/g, c => '!' + c)}%`;
+    params.push(like, like);
+  }
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 15, 1), 200);
+  const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+  const from = `FROM activity_log a JOIN users u ON u.id = a.user_id WHERE ${where.join(' AND ')}`;
+
+  const total = db.prepare(`SELECT COUNT(*) AS n ${from}`).get(...params).n;
+  const items = db.prepare(`
+    SELECT a.id, a.ticket_id, a.ticket_title, a.action, a.details, a.created_at,
+           ${displayName('u')} AS user_name, u.role AS user_role,
+           EXISTS (SELECT 1 FROM tickets t WHERE t.id = a.ticket_id) AS ticket_exists
+    ${from} ORDER BY a.created_at DESC, a.id DESC LIMIT ? OFFSET ?
+  `).all(...params, limit, offset).map(i => ({ ...i, ticket_exists: !!i.ticket_exists }));
+  res.json({ items, total });
 });
 
 app.get('/api/departments', requireAuth, (req, res) => {

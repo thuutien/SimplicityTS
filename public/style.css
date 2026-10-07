@@ -19,11 +19,12 @@ header nav button.active, header nav button:hover { color: #fff; background: #37
 .me { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .me .link { color: #d1d5db; }
 
-main { max-width: 1280px; margin: 24px auto; padding: 0 16px; }
+main { max-width: 1680px; margin: 24px auto; padding: 0 16px; }
 .page:not(#tickets-page) { max-width: 968px; margin: 0 auto; }
 
 /* Ticket list + summary panel */
-.tickets-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
+/* Summary (left) | ticket list | agent activity (right). Employees only get the list. */
+.tickets-layout { display: grid; grid-template-columns: 270px minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
 .tickets-layout:has(.summary.hidden) { grid-template-columns: minmax(0, 1fr); }
 .summary { display: flex; flex-direction: column; gap: 12px; }
 .summary .card { margin: 0; padding: 14px 16px; }
@@ -70,8 +71,50 @@ main { max-width: 1280px; margin: 24px auto; padding: 0 16px; }
 .dept-table td.n, .dept-table th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .dept-table tr:last-child td { border-bottom: none; }
 .dept-table td:first-child { white-space: nowrap; }
+/* Agent activity panel */
+.activity .card { margin: 0; padding: 14px 16px; }
+.activity-head { display: flex; justify-content: space-between; align-items: baseline; }
+.activity-head h3 { font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 10px; }
+.activity-head .link { font-size: 13px; padding: 0; }
+.activity-filters { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
+.activity-filters input { margin: 0; padding: 6px 8px; font-size: 13px; }
+.activity-filters input[type="date"] { width: auto; flex: 0 0 auto; }
+.activity-filters input[type="search"] { flex: 1 1 120px; width: auto; }
+.activity-list { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.activity-list li { padding: 8px 0; border-bottom: 1px solid #f3f4f6; line-height: 1.4; }
+.activity-list li:last-child { border-bottom: none; }
+.activity-list li.clickable { cursor: pointer; }
+.activity-list li.clickable:hover { background: #f9fafb; }
+.activity-list .when { color: #6b7280; font-size: 12px; }
+.activity-list .what { color: #374151; }
+.activity-list .quote { color: #6b7280; font-style: italic; }
+.ticket-ref { color: #2563eb; }
+.ticket-ref.gone { color: #6b7280; text-decoration: line-through; }
+.activity-count { font-size: 12px; margin: 8px 0 0; }
+
+/* "View all" window */
+.modal { position: fixed; inset: 0; background: rgba(17, 24, 39, 0.45); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 50; }
+.modal-box { background: #fff; border-radius: 10px; width: min(1100px, 100%); max-height: calc(100vh - 80px); display: flex; flex-direction: column; padding: 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); }
+.modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.modal-head h2 { margin: 0; font-size: 20px; }
+.modal-scroll { overflow: auto; min-height: 0; }
+.activity-table { width: 100%; border-collapse: collapse; }
+.activity-table th { position: sticky; top: 0; z-index: 1; }
+.activity-table td { vertical-align: top; }
+.activity-table td:first-child { white-space: nowrap; color: #6b7280; }
+.activity-table tr.clickable { cursor: pointer; }
+.activity-table tr.clickable:hover { background: #f3f4f6; }
+#activity-more { margin: 12px 0 4px; }
+body.modal-open { overflow: hidden; }
+
+/* Medium screens: summary + list side by side, activity full width below */
+@media (max-width: 1350px) {
+  .tickets-layout { grid-template-columns: 250px minmax(0, 1fr); }
+  .tickets-layout .activity { grid-column: 1 / -1; }
+}
 @media (max-width: 1000px) {
   .tickets-layout { grid-template-columns: minmax(0, 1fr); }
+  .tickets-layout .tickets-main { order: -1; }
 }
 .page { display: none; }
 .page.active { display: block; }

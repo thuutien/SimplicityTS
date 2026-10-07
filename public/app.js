@@ -257,13 +257,152 @@ async function loadSummary() {
     </div>`;
 }
 
-// Keep the summary current while the ticket list is on screen
+// ----- agent activity (agents and admins) -----
+
+// Query params for "created on this local day" (date input value YYYY-MM-DD), or {} for all dates
+function dayRangeParams(day) {
+  if (!day) return {};
+  const [y, m, d] = day.split('-').map(Number);
+  return { from: toDbTime(new Date(y, m - 1, d)), to: toDbTime(new Date(y, m - 1, d + 1)) };
+}
+
+function timeAgo(s) {
+  const date = new Date(s.replace(' ', 'T') + 'Z');
+  const mins = Math.round((Date.now() - date) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  if (mins < 24 * 60) return `${Math.round(mins / 60)}h ago`;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+// "changed status Open → In progress", etc. quoteLength limits how much of a reply is shown.
+function activityText(a, quoteLength) {
+  const quote = a.details && a.details.length > quoteLength ? a.details.slice(0, quoteLength) + '…' : a.details;
+  switch (a.action) {
+    case 'created': return 'created a ticket';
+    case 'status': return `changed status <strong>${esc(a.details)}</strong>`;
+    case 'priority': return `changed priority <strong>${esc(a.details)}</strong>`;
+    case 'department': return `moved ticket to <strong>${esc(a.details)}</strong>`;
+    case 'assigned': return `assigned ticket to <strong>${esc(a.details)}</strong>`;
+    case 'unassigned': return `unassigned <strong>${esc(a.details)}</strong>`;
+    case 'comment': return `replied <span class="quote">“${esc(quote)}”</span>`;
+    case 'deleted': return 'deleted a ticket';
+    default: return esc(a.action);
+  }
+}
+
+const ticketRef = a => `<span class="ticket-ref ${a.ticket_exists ? '' : 'gone'}" title="${a.ticket_exists ? '' : 'Ticket deleted'}">#${a.ticket_id} ${esc(a.ticket_title || '')}</span>`;
+
+function activityQuery(dateInput, searchInput, extra) {
+  return new URLSearchParams({ ...dayRangeParams($(dateInput).value), q: $(searchInput).value.trim(), ...extra });
+}
+
+// Side panel: the 15 latest
+async function loadActivity() {
+  let data;
+  try {
+    data = await api('GET', '/api/activity?' + activityQuery('#activity-date', '#activity-search', { limit: 15 }));
+  } catch {
+    return;
+  }
+  $('#activity-list').innerHTML = data.items.length
+    ? data.items.map(a => `
+        <li class="${a.ticket_exists ? 'clickable' : ''}" data-ticket="${a.ticket_exists ? a.ticket_id : ''}">
+          <div><strong>${esc(a.user_name)}</strong> <span class="what">${activityText(a, 60)}</span></div>
+          <div>${ticketRef(a)} <span class="when" title="${esc(fmtDate(a.created_at))}">· ${timeAgo(a.created_at)}</span></div>
+        </li>`).join('')
+    : '<li class="muted">No activity found.</li>';
+  $('#activity-count').textContent = data.total > data.items.length
+    ? `Showing ${data.items.length} of ${data.total}. Click "View all" to see everything.`
+    : '';
+}
+
+// "View all" window, loaded 50 at a time
+let activityOffset = 0;
+async function loadAllActivity(reset) {
+  if (reset) {
+    activityOffset = 0;
+    $('#activity-all-rows').innerHTML = '';
+  }
+  let data;
+  try {
+    data = await api('GET', '/api/activity?' + activityQuery('#activity-all-date', '#activity-all-search', { limit: 50, offset: activityOffset }));
+  } catch {
+    return;
+  }
+  activityOffset += data.items.length;
+  $('#activity-all-rows').insertAdjacentHTML('beforeend', data.items.map(a => `
+    <tr class="${a.ticket_exists ? 'clickable' : ''}" data-ticket="${a.ticket_exists ? a.ticket_id : ''}">
+      <td title="${esc(timeAgo(a.created_at))}">${esc(fmtDate(a.created_at))}</td>
+      <td><strong>${esc(a.user_name)}</strong> ${badge(a.user_role)}</td>
+      <td>${activityText(a, 200)}</td>
+      <td>${ticketRef(a)}</td>
+    </tr>`).join(''));
+  $('#activity-all-empty').classList.toggle('hidden', data.total > 0);
+  $('#activity-more').classList.toggle('hidden', activityOffset >= data.total);
+  $('#activity-all-count').textContent = `${data.total} ${data.total === 1 ? 'activity' : 'activities'}`;
+}
+
+function openActivityModal() {
+  // Start with the same filters as the side panel
+  $('#activity-all-date').value = $('#activity-date').value;
+  $('#activity-all-search').value = $('#activity-search').value;
+  $('#activity-modal').classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  loadAllActivity(true);
+  $('#activity-close').focus();
+}
+
+function closeActivityModal() {
+  $('#activity-modal').classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
+// Wait until typing pauses before searching
+const debounce = (fn, ms) => {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
+};
+
+$('#activity-date').addEventListener('change', loadActivity);
+$('#activity-search').addEventListener('input', debounce(loadActivity, 300));
+$('#activity-expand').addEventListener('click', openActivityModal);
+$('#activity-all-date').addEventListener('change', () => loadAllActivity(true));
+$('#activity-all-search').addEventListener('input', debounce(() => loadAllActivity(true), 300));
+$('#activity-more').addEventListener('click', () => loadAllActivity(false));
+$('#activity-close').addEventListener('click', closeActivityModal);
+$('#activity-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeActivityModal(); // click outside the box
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('#activity-modal').classList.contains('hidden')) closeActivityModal();
+});
+// Click an activity to open its ticket
+for (const sel of ['#activity-list', '#activity-all-rows']) {
+  $(sel).addEventListener('click', e => {
+    const item = e.target.closest('[data-ticket]');
+    if (!item || !item.dataset.ticket) return;
+    closeActivityModal();
+    openTicket(item.dataset.ticket);
+  });
+}
+
+// Keep the summary and activity current while the ticket list is on screen
 setInterval(() => {
-  if (isStaff() && !document.hidden && $('#tickets-page').classList.contains('active')) loadSummary();
+  if (isStaff() && !document.hidden && $('#tickets-page').classList.contains('active')) {
+    loadSummary();
+    loadActivity();
+  }
 }, 60 * 1000);
 
 async function loadTickets() {
-  if (isStaff()) loadSummary();
+  if (isStaff()) {
+    loadSummary();
+    loadActivity();
+  }
   const query = new URLSearchParams({ state: ticketState });
   if (ticketState === 'open' && $('#status-filter').value) query.set('status', $('#status-filter').value);
   // Tickets created on the chosen day, in the viewer's local time

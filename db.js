@@ -144,6 +144,32 @@ if (addColumnIfMissing('users', 'email_verified_at', 'TEXT')) {
   db.exec('UPDATE users SET email_verified_at = created_at');
 }
 
+// Who did what to which ticket. ticket_id has no foreign key so entries survive ticket deletion;
+// ticket_title keeps the title as it was.
+const activityExisted = !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'activity_log'").get();
+db.exec(`
+  CREATE TABLE IF NOT EXISTS activity_log (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL REFERENCES users(id),
+    ticket_id    INTEGER,
+    ticket_title TEXT,
+    action       TEXT NOT NULL,
+    details      TEXT,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_log(created_at);
+`);
+if (!activityExisted) {
+  // Fill in what history we have: tickets created and comments written before the log existed.
+  db.exec(`
+    INSERT INTO activity_log (user_id, ticket_id, ticket_title, action, details, created_at)
+      SELECT t.created_by, t.id, t.title, 'created', NULL, t.created_at FROM tickets t;
+    INSERT INTO activity_log (user_id, ticket_id, ticket_title, action, details, created_at)
+      SELECT c.user_id, c.ticket_id, t.title, 'comment', substr(c.body, 1, 200), c.created_at
+      FROM comments c JOIN tickets t ON t.id = c.ticket_id;
+  `);
+}
+
 function getSetting(key, createValue) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
   if (row) return row.value;

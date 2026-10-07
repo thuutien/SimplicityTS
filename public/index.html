@@ -90,6 +90,9 @@
       <!-- Ticket list -->
       <div id="tickets-page" class="page">
        <div class="tickets-layout">
+        <!-- Summary panel (agents and admins) -->
+        <aside id="summary-panel" class="summary staff-only" aria-label="Ticket summary"></aside>
+
         <div class="tickets-main">
         <div class="toolbar">
           <h2 id="tickets-heading">Tickets</h2>
@@ -133,8 +136,21 @@
         <p id="no-tickets" class="muted hidden">No tickets found.</p>
         </div>
 
-        <!-- Summary panel (agents and admins) -->
-        <aside id="summary-panel" class="summary staff-only" aria-label="Ticket summary"></aside>
+        <!-- Agent activity (agents and admins) -->
+        <aside id="activity-panel" class="activity staff-only" aria-label="Agent activity">
+          <div class="card">
+            <div class="activity-head">
+              <h3>Agent activity</h3>
+              <button type="button" id="activity-expand" class="link">View all</button>
+            </div>
+            <div class="activity-filters">
+              <input type="date" id="activity-date" aria-label="Activity date">
+              <input type="search" id="activity-search" placeholder="Search agent..." aria-label="Search agent">
+            </div>
+            <ul id="activity-list" class="activity-list"></ul>
+            <p id="activity-count" class="activity-count muted"></p>
+          </div>
+        </aside>
        </div>
       </div>
 
@@ -260,6 +276,29 @@
       </div>
     </main>
   </section>
+
+  <!-- All agent activity (opened from "View all") -->
+  <div id="activity-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="activity-modal-title">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2 id="activity-modal-title">All agent activity</h2>
+        <button type="button" id="activity-close" class="secondary">Close</button>
+      </div>
+      <div class="activity-filters">
+        <input type="date" id="activity-all-date" aria-label="Activity date">
+        <input type="search" id="activity-all-search" placeholder="Search agent..." aria-label="Search agent">
+        <span id="activity-all-count" class="muted"></span>
+      </div>
+      <div class="modal-scroll">
+        <table class="activity-table">
+          <thead><tr><th>When</th><th>Agent</th><th>Activity</th><th>Ticket</th></tr></thead>
+          <tbody id="activity-all-rows"></tbody>
+        </table>
+        <p id="activity-all-empty" class="muted hidden">No activity found.</p>
+        <button type="button" id="activity-more" class="secondary hidden">Load more</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

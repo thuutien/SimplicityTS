@@ -1,6 +1,6 @@
 # SimplicityTS
 
-Version 1.4.0 (shown at the bottom right of every page; set in `package.json`).
+Version 1.4.1 (shown at the bottom right of every page; set in `package.json`).
 
 A simple ticket system with three roles: **employee**, **agent** and **admin**.
 

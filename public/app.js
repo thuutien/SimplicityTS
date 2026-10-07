@@ -1179,15 +1179,21 @@ $('#email-test-send').addEventListener('click', async () => {
 function applyAppTitle(title) {
   document.querySelectorAll('[data-app-title]').forEach(el => (el.textContent = title));
   document.title = title;
+  // The top bar icon (when set) stands in for the title, so it carries the title for screen readers and as a tooltip
+  $('#header-icon').alt = title;
+  $('#header-icon').title = title;
 }
 
 // Login page icon; iconVersion is null when no icon is set
 const iconUrl = iconVersion => `/api/branding/icon?v=${encodeURIComponent(iconVersion)}`;
+// Shows the icon on the login page and in the top bar; without an icon the top bar shows the title text
 function applyIcon(iconVersion) {
-  const img = $('#login-icon');
-  img.classList.toggle('hidden', !iconVersion);
-  if (iconVersion) img.src = iconUrl(iconVersion);
-  else img.removeAttribute('src');
+  for (const img of [$('#login-icon'), $('#header-icon')]) {
+    img.classList.toggle('hidden', !iconVersion);
+    if (iconVersion) img.src = iconUrl(iconVersion);
+    else img.removeAttribute('src');
+  }
+  $('#header-title').classList.toggle('hidden', !!iconVersion);
 }
 
 function renderIconSetting(iconVersion) {

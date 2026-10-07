@@ -205,6 +205,8 @@ function verifyPassword(password, stored) {
 // The main admin (from ADMIN_EMAIL in .env) is protected: it can't be deleted or lose its admin role,
 // and other admins can't change its email or password.
 addColumnIfMissing('users', 'is_protected', 'INTEGER NOT NULL DEFAULT 0');
+// Appearance: 'system' (follow the device), 'light' or 'dark'
+addColumnIfMissing('users', 'theme', "TEXT NOT NULL DEFAULT 'system'");
 
 // On first run, create the first admin from ADMIN_EMAIL / ADMIN_PASSWORD in .env.
 // If no password is set, a random one is generated and printed once to the console.

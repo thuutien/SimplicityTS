@@ -155,7 +155,57 @@ function deptColorClass(name) {
   return { it: 'dept-it', production: 'dept-prod' }[key] || 'dept-other';
 }
 
+// ---------- theme ----------
+// Preference is 'system', 'light' or 'dark'. It is saved to the user's account, and in this browser
+// so the login page (and the first paint, see index.html) uses it too.
+const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+let themePref = 'system';
+try {
+  themePref = localStorage.getItem('theme') || 'system';
+} catch {
+  // storage unavailable: follow the system
+}
+
+const resolvedTheme = () => (themePref === 'dark' || (themePref === 'system' && darkQuery.matches) ? 'dark' : 'light');
+
+function applyTheme(pref) {
+  themePref = ['system', 'light', 'dark'].includes(pref) ? pref : 'system';
+  try {
+    localStorage.setItem('theme', themePref);
+  } catch {
+    // not remembered in this browser; still applied now
+  }
+  const dark = resolvedTheme() === 'dark';
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  const toggle = $('#theme-toggle');
+  toggle.textContent = dark ? '☀' : '🌙';
+  toggle.title = dark ? 'Switch to light theme' : 'Switch to dark theme';
+  toggle.setAttribute('aria-label', toggle.title);
+  $('#theme-select').value = themePref;
+}
+
+async function setTheme(pref) {
+  applyTheme(pref);
+  if (me) {
+    try {
+      await api('PATCH', '/api/me/theme', { theme: themePref });
+      me.theme = themePref;
+    } catch {
+      // applied here anyway; the account keeps the old choice
+    }
+  }
+}
+
+darkQuery.addEventListener('change', () => {
+  if (themePref === 'system') applyTheme('system');
+});
+$('#theme-toggle').addEventListener('click', () => setTheme(resolvedTheme() === 'dark' ? 'light' : 'dark'));
+$('#theme-select').addEventListener('change', e => setTheme(e.target.value));
+applyTheme(themePref);
+
 function renderMe() {
+  // An explicit Light/Dark choice on the account wins after login; "system" keeps this browser's choice
+  if (me.theme && me.theme !== 'system' && me.theme !== themePref) applyTheme(me.theme);
   $('#me-name').textContent = me.name;
   $('#me-role').textContent = label(me.role);
   $('#me-role').className = `badge ${me.role}`;

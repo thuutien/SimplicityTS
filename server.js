@@ -149,7 +149,7 @@ function sendPasswordChangedEmail(user) {
 function requireAuth(req, res, next) {
   const id = req.session.userId;
   const user = id && db.prepare(`
-    SELECT u.id, u.first_name, u.last_name, u.name, u.email, u.role, u.department_id, d.name AS department_name
+    SELECT u.id, u.first_name, u.last_name, u.name, u.email, u.role, u.department_id, d.name AS department_name, u.theme
     FROM users u LEFT JOIN departments d ON d.id = u.department_id
     WHERE u.id = ? AND u.deleted_at IS NULL AND u.email_verified_at IS NOT NULL
   `).get(id);
@@ -326,6 +326,13 @@ app.patch('/api/me', requireAuth, (req, res) => {
   db.prepare('UPDATE users SET first_name = ?, last_name = ?, name = ? WHERE id = ?')
     .run(names.first_name, names.last_name, names.name, req.user.id);
   res.json({ ok: true });
+});
+
+app.patch('/api/me/theme', requireAuth, (req, res) => {
+  const theme = req.body.theme;
+  if (!['system', 'light', 'dark'].includes(theme)) return res.status(400).json({ error: 'Invalid theme' });
+  db.prepare('UPDATE users SET theme = ? WHERE id = ?').run(theme, req.user.id);
+  res.json({ theme });
 });
 
 app.post('/api/me/password', requireAuth, loginLimiter, (req, res) => {

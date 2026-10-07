@@ -4,6 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ticket System</title>
+  <script>
+    // Apply the saved theme (Light / Dark / System) before the page is drawn.
+    (function () {
+      var pref = 'system';
+      try { pref = localStorage.getItem('theme') || 'system'; } catch (e) {}
+      var dark = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    })();
+  </script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -87,6 +96,7 @@
       <div class="me">
         <button data-nav="account" class="link me-link" title="My account"><span id="me-name"></span></button>
         <span id="me-role" class="badge"></span> <span id="me-dept" class="badge dept hidden"></span>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme"></button>
         <button id="logout" class="link">Log out</button>
       </div>
     </header>
@@ -248,6 +258,18 @@
             <p class="notice hidden" id="profile-notice"></p>
             <p class="error" id="profile-error"></p>
           </form>
+        </div>
+
+        <div class="card">
+          <h3>Appearance</h3>
+          <label>Theme
+            <select id="theme-select" class="input-short">
+              <option value="system">System (match this device)</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <p class="hint">You can also switch quickly with the ☀ / 🌙 button in the top bar. Your choice is saved to your account.</p>
         </div>
 
         <form id="password-form" class="card">

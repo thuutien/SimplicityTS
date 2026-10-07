@@ -58,7 +58,8 @@ log in, their tickets and comments stay (shown as "Name (deleted)"), and their e
 - **Sign up:** anyone with an email at `ALLOWED_SIGNUP_DOMAIN` (set in `.env`) can create an account (first name, last name, email,
   password). They get a verification email and can log in once they click the link. New sign-ups are
   always employees; an admin can change their role.
-- **My account:** everyone can change their name and password. Only admins can change a user's email (Users page).
+- **My account:** everyone can change their name, password and theme (Light, Dark or System; also a ☀/🌙 button
+  in the top bar). The theme is saved to the account. Only admins can change a user's email (Users page).
 - **Forgot password:** on the login page; sends a reset link that works once and expires after 30 minutes.
 - **New tickets:** choose a Request Type. "Production Request" (Location, Request: Work Cart / Empty Cart / RMA / Tech Issue, optional Additional Info) goes to Production; "Report Issue to IT" (Location, Issue Description) goes to IT Support. The title is generated automatically and priority starts at Medium.
 - **Main admin:** the admin whose email is `ADMIN_EMAIL` in `.env` cannot be deleted or lose its admin role, and only

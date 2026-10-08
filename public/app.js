@@ -150,6 +150,7 @@ async function refreshDepartments() {
     sel.insertAdjacentHTML('beforeend', departments.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join(''));
     sel.value = selected;
   });
+  fillRequestTypes();
 }
 
 // Color dot class for a department (by name): the two built-in departments have their own colors
@@ -217,6 +218,7 @@ function renderMe() {
 }
 
 function navigate(page) {
+  hideTicketPeek();
   if (page === 'dashboard' && !isStaff()) page = 'tickets';
   if (page === 'settings' && me.role !== 'admin') page = 'tickets';
   clearHash();
@@ -228,6 +230,7 @@ function navigate(page) {
   if (page === 'users') loadUsers();
   if (page === 'settings') loadSettings();
   if (page === 'account') loadAccount();
+  if (page === 'new') refreshDepartments(); // pick up form changes made in Settings
 }
 
 document.addEventListener('click', e => {
@@ -696,6 +699,8 @@ async function loadTickets() {
   if ($('#department-filter').value) query.set('department', $('#department-filter').value);
   if (isStaff() && $('#assigned-filter').value) query.set('assigned', $('#assigned-filter').value);
   const tickets = await api('GET', '/api/tickets?' + query);
+  listedTickets = new Map(tickets.map(t => [String(t.id), t]));
+  hideTicketPeek();
   const staff = isStaff();
   $('#ticket-rows').innerHTML = tickets.map(t => `
     <tr class="clickable${newTicketIds.has(t.id) ? ' new-row' : ''}" data-id="${t.id}">
@@ -735,34 +740,170 @@ $('#department-filter').addEventListener('change', loadTickets);
 
 $('#ticket-rows').addEventListener('click', e => {
   const row = e.target.closest('tr[data-id]');
-  if (row) openTicket(row.dataset.id);
+  if (row) {
+    hideTicketPeek();
+    openTicket(row.dataset.id);
+  }
 });
 
-// Show only the fields for the chosen request type
+// ----- Hover card: resting the mouse on a ticket shows everything the person filled in -----
+let listedTickets = new Map();
+let peekTimer = null;
+let peekRow = null;
+const peek = document.createElement('div');
+peek.id = 'ticket-peek';
+peek.className = 'ticket-peek hidden';
+peek.setAttribute('role', 'tooltip');
+document.body.append(peek);
+
+function ticketPeekHtml(t) {
+  const answers = ticketAnswers(t);
+  const requestType = departments.find(d => d.id === t.department_id)?.form_title;
+  return `
+    <div class="peek-head">
+      <strong>#${t.id} &middot; ${esc(t.title)}</strong>
+      <span class="peek-badges">${badge(t.status)} ${badge(t.priority)}</span>
+    </div>
+    <dl class="peek-fields">
+      <dt>Request type</dt><dd>${esc(requestType || t.department_name || 'None')}</dd>
+      ${answers.map(a => `<dt>${esc(a.label)}</dt><dd class="${a.type === 'textarea' ? 'peek-long' : ''}">${esc(a.value)}</dd>`).join('')}
+    </dl>`;
+}
+
+// Next to the pointer, kept inside the window
+function placeTicketPeek(x, y) {
+  const gap = 16;
+  const { width, height } = peek.getBoundingClientRect();
+  let left = x + gap;
+  let top = y + gap;
+  if (left + width > window.innerWidth - 8) left = Math.max(8, x - width - gap);
+  if (top + height > window.innerHeight - 8) top = Math.max(8, window.innerHeight - height - 8);
+  peek.style.left = `${left}px`;
+  peek.style.top = `${top}px`;
+}
+
+function hideTicketPeek() {
+  clearTimeout(peekTimer);
+  peekRow = null;
+  peek.classList.add('hidden');
+}
+
+$('#ticket-rows').addEventListener('pointerover', e => {
+  if (e.pointerType !== 'mouse') return; // touch screens tap straight into the ticket
+  const row = e.target.closest('tr[data-id]');
+  if (!row || row === peekRow) return;
+  const t = listedTickets.get(row.dataset.id);
+  if (!t) return;
+  hideTicketPeek();
+  peekRow = row;
+  const { clientX, clientY } = e;
+  peekTimer = setTimeout(() => {
+    peek.innerHTML = ticketPeekHtml(t);
+    peek.classList.remove('hidden');
+    placeTicketPeek(clientX, clientY);
+  }, 350); // short delay so moving across the list doesn't flash cards
+});
+$('#ticket-rows').addEventListener('pointermove', e => {
+  if (peekRow && !peek.classList.contains('hidden')) placeTicketPeek(e.clientX, e.clientY);
+});
+$('#ticket-rows').addEventListener('pointerleave', hideTicketPeek);
+window.addEventListener('scroll', hideTicketPeek, { passive: true });
+
+// ----- Request forms (built per department in Settings > Departments) -----
+
+const FIELD_TYPES = { text: 'Small textbox', select: 'Dropdown', textarea: 'Text box' };
+
+// The inputs for a form's fields. Inputs are named "f:<field id>".
+function formFieldsHtml(fields) {
+  return fields.map(f => {
+    const name = `f:${esc(f.id)}`;
+    const optional = f.required ? '' : ' <span class="muted optional">(optional)</span>';
+    const req = f.required ? 'required' : '';
+    const input = {
+      text: `<input name="${name}" class="input-short" maxlength="100" ${req}>`,
+      select: `<select name="${name}" ${req}><option value="">Choose...</option>${(f.options || []).map(o => `<option>${esc(o)}</option>`).join('')}</select>`,
+      textarea: `<textarea name="${name}" rows="4" maxlength="5000" ${req}></textarea>`,
+    }[f.type] || '';
+    return `<label>${esc(f.label) || '<span class="muted">(no label)</span>'}${optional} ${input}</label>`;
+  }).join('');
+}
+
+// Departments on the New ticket form, in a stable order: Production first (the default), then IT, then the rest by name
+function requestTypes() {
+  const rank = d => ({ production: 0, it: 1 }[d.request_key] ?? 2);
+  return departments.filter(d => d.form_title).sort((a, b) => rank(a) - rank(b) || a.form_title.localeCompare(b.form_title));
+}
+
+function fillRequestTypes() {
+  const sel = $('#request-type');
+  const selected = sel.value;
+  const types = requestTypes();
+  sel.innerHTML = types.map(d => `<option value="${d.id}">${esc(d.form_title)}</option>`).join('');
+  if (types.some(d => String(d.id) === selected)) sel.value = selected;
+  showRequestFields();
+}
+
+// Show the chosen request type's fields. Left alone if the form hasn't changed, so typed answers stay.
+let shownForm = '';
 function showRequestFields() {
-  const type = $('#request-type').value;
-  document.querySelectorAll('.request-fields').forEach(fs => {
-    const active = fs.dataset.requestType === type;
-    fs.classList.toggle('hidden', !active);
-    fs.disabled = !active;
-  });
+  const dept = departments.find(d => String(d.id) === $('#request-type').value);
+  const key = dept ? JSON.stringify([dept.id, dept.form_fields]) : '';
+  if (key === shownForm) return;
+  shownForm = key;
+  $('#request-fields').innerHTML = dept ? formFieldsHtml(dept.form_fields) : '<p class="muted">No request types are set up yet. Ask an admin to add a form in Settings.</p>';
 }
 $('#request-type').addEventListener('change', showRequestFields);
-showRequestFields(); // show the default (Production Request) fields on load
 
 $('#new-ticket-form').addEventListener('submit', async e => {
   e.preventDefault();
-  const form = new FormData(e.target);
+  const fields = {};
+  for (const [name, value] of new FormData(e.target)) {
+    if (name.startsWith('f:')) fields[name.slice(2)] = value;
+  }
   try {
-    const ticket = await api('POST', '/api/tickets', Object.fromEntries(form));
+    const ticket = await api('POST', '/api/tickets', { request_type: $('#request-type').value, fields });
     e.target.reset();
-    showRequestFields();
+    shownForm = '';
+    fillRequestTypes();
     $('#new-ticket-error').textContent = '';
     openTicket(ticket.id);
   } catch (err) {
     $('#new-ticket-error').textContent = err.message;
   }
 });
+
+// What the person filled in when creating the ticket: [{ label, type, value }], empty answers left out.
+// Tickets from before department forms only have request, location and description.
+function ticketAnswers(t) {
+  let answers = null;
+  try {
+    answers = JSON.parse(t.form_data || 'null');
+  } catch {
+    // treated as an older ticket below
+  }
+  if (Array.isArray(answers) && answers.length) return answers.filter(a => a.value);
+  return [
+    ...(t.request_item ? [{ label: 'Request', type: 'select', value: t.request_item }] : []),
+    ...(t.location ? [{ label: 'Location', type: 'text', value: t.location }] : []),
+    ...(t.description ? [{ label: t.request_item ? 'Additional info' : t.location ? 'Issue description' : 'Description', type: 'textarea', value: t.description }] : []),
+  ];
+}
+
+// The answers on the ticket page: short answers as chips, text boxes as highlighted blocks
+function ticketRequestHtml(t) {
+  const answers = ticketAnswers(t);
+  const chips = answers.filter(a => a.type !== 'textarea');
+  const boxes = answers.filter(a => a.type === 'textarea');
+  return `
+    ${chips.length ? `<div class="request-details">${chips.map(a => `
+      <div class="request-chip"><span class="request-chip-label">${esc(a.label)}</span><strong>${esc(a.value)}</strong></div>`).join('')}
+    </div>` : ''}
+    ${boxes.map(a => `
+      <div class="info-callout">
+        <div class="info-callout-label">${esc(a.label)}</div>
+        <div class="description">${esc(a.value)}</div>
+      </div>`).join('')}`;
+}
 
 async function openTicket(id) {
   currentTicketId = id;
@@ -828,16 +969,7 @@ async function openTicket(id) {
       <span>Assigned to: ${esc(t.assigned_to_name) || 'Unassigned'}</span>
       <span>Created: ${fmtDate(t.created_at)}</span>
     </div>
-    ${t.location || t.request_item ? `
-      <div class="request-details">
-        ${t.request_item ? `<div class="request-chip"><span class="request-chip-label">Request</span><strong>${esc(t.request_item)}</strong></div>` : ''}
-        ${t.location ? `<div class="request-chip"><span class="request-chip-label">Location</span><strong>${esc(t.location)}</strong></div>` : ''}
-      </div>` : ''}
-    ${t.description ? `
-      <div class="info-callout">
-        ${t.location ? `<div class="info-callout-label">${t.request_item ? 'Additional info' : 'Issue description'}</div>` : ''}
-        <div class="description">${esc(t.description)}</div>
-      </div>` : ''}
+    ${ticketRequestHtml(t)}
     ${controls}
     <p class="error" id="detail-error"></p>`;
 
@@ -1155,11 +1287,11 @@ async function loadSettings() {
   $('#dept-rows').innerHTML = rows.map(d => `
     <tr data-dept="${d.id}">
       <td class="dept-name"><span class="dot ${deptColorClass(d.name)}" aria-hidden="true"></span><span>${esc(d.name)}</span></td>
-      <td>${d.request_type ? esc(d.request_type) : '<span class="muted">Not on the form</span>'}</td>
+      <td>${d.form_title ? `${esc(d.form_title)} <span class="muted">(${d.form_fields.length} field${d.form_fields.length === 1 ? '' : 's'})</span>` : '<span class="muted">Not on the form</span>'}</td>
       <td class="n">${d.agents}</td>
       <td class="n">${d.open_tickets}</td>
       <td class="n">${d.total_tickets}</td>
-      <td class="row-actions"><button type="button" class="secondary" data-rename="${d.id}">Rename</button></td>
+      <td class="row-actions"><button type="button" class="secondary" data-edit-form="${d.id}">Edit form</button><button type="button" class="secondary" data-rename="${d.id}">Rename</button></td>
     </tr>`).join('');
 }
 
@@ -1170,6 +1302,7 @@ $('#dept-rows').addEventListener('click', async e => {
   const id = row.dataset.dept;
   const nameCell = row.querySelector('.dept-name');
 
+  if (e.target.closest('[data-edit-form]')) return openFormEditor(Number(id));
   if (e.target.closest('[data-rename]')) {
     const current = departments.find(d => String(d.id) === id)?.name || '';
     nameCell.innerHTML = `<input class="rename-input" maxlength="50" value="${esc(current)}" aria-label="Department name">`;
@@ -1203,14 +1336,134 @@ $('#dept-add-form').addEventListener('submit', async e => {
   e.preventDefault();
   const name = e.target.elements.name.value;
   try {
-    await api('POST', '/api/settings/departments', { name });
+    const dept = await api('POST', '/api/settings/departments', { name });
     e.target.reset();
     await refreshDepartments();
     await loadSettings();
-    showNotice('#dept-notice', `Department "${name.trim()}" added. You can now put agents in it on the Users page.`);
+    showNotice('#dept-notice', `Department "${name.trim()}" added. Build its request form below (or Cancel to keep it off the New ticket page), and put agents in it on the Users page.`);
+    openFormEditor(dept.id, { isNew: true });
   } catch (err) {
     showNotice('#dept-notice', '');
     $('#dept-error').textContent = err.message;
+  }
+});
+
+// ----- Form builder: a department's form on the New ticket page -----
+
+let formEdit = null; // { deptId, fields: [{ id, label, type, required, options }] }
+
+function openFormEditor(deptId, { isNew = false } = {}) {
+  const dept = departments.find(d => d.id === deptId);
+  if (!dept) return;
+  formEdit = { deptId, fields: structuredClone(dept.form_fields) };
+  const form = $('#form-editor');
+  $('#form-editor-title').textContent = `Request form: ${dept.name}`;
+  form.elements.enabled.checked = isNew || !!dept.form_title;
+  form.elements.title.value = dept.form_title || (isNew ? dept.name : '');
+  $('#form-editor-error').textContent = '';
+  renderFormEditor();
+  form.classList.remove('hidden');
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (isNew) form.elements.title.focus();
+}
+
+function closeFormEditor() {
+  formEdit = null;
+  $('#form-editor').classList.add('hidden');
+}
+
+function renderFormEditor() {
+  $('#form-editor-fields').innerHTML = formEdit.fields.length ? formEdit.fields.map((f, i) => `
+    <li class="field-item" data-index="${i}">
+      <div class="field-row">
+        <input data-prop="label" value="${esc(f.label)}" placeholder="Label, e.g. Location" maxlength="60" aria-label="Field ${i + 1} label">
+        <select data-prop="type" aria-label="Field ${i + 1} type">
+          ${Object.entries(FIELD_TYPES).map(([v, l]) => `<option value="${v}" ${v === f.type ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>
+        <label class="checkbox"><input type="checkbox" data-prop="required" ${f.required ? 'checked' : ''}> Required</label>
+        <span class="field-buttons">
+          <button type="button" class="secondary icon-btn" data-move="-1" title="Move up" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>&uarr;</button>
+          <button type="button" class="secondary icon-btn" data-move="1" title="Move down" aria-label="Move down" ${i === formEdit.fields.length - 1 ? 'disabled' : ''}>&darr;</button>
+          <button type="button" class="secondary icon-btn" data-remove title="Remove field" aria-label="Remove field">&times;</button>
+        </span>
+      </div>
+      ${f.type === 'select' ? `
+        <textarea data-prop="options" rows="3" placeholder="Choices, one per line" aria-label="Field ${i + 1} choices">${esc((f.options || []).join('\n'))}</textarea>` : ''}
+    </li>`).join('') : '<li class="muted field-empty">No fields yet. Add one below.</li>';
+  renderFormPreview();
+}
+
+function renderFormPreview() {
+  $('#form-editor-preview').innerHTML = formEdit.fields.length
+    ? formFieldsHtml(formEdit.fields.map(f => ({ ...f, label: f.label.trim(), options: (f.options || []).filter(o => o.trim()) })))
+    : '<p class="muted">The form is empty.</p>';
+}
+
+// Typing updates the preview without redrawing the list (so the cursor stays put)
+function onFieldEdit(e) {
+  const item = e.target.closest('[data-index]');
+  if (!item) return;
+  const field = formEdit.fields[item.dataset.index];
+  const prop = e.target.dataset.prop;
+  if (prop === 'label') field.label = e.target.value;
+  if (prop === 'required') field.required = e.target.checked;
+  if (prop === 'options') field.options = e.target.value.split('\n');
+  if (prop === 'type') {
+    field.type = e.target.value;
+    if (field.type === 'select' && !field.options) field.options = [];
+    renderFormEditor();
+    return;
+  }
+  renderFormPreview();
+}
+$('#form-editor-fields').addEventListener('input', onFieldEdit);
+$('#form-editor-fields').addEventListener('change', e => {
+  if (e.target.dataset.prop === 'required') onFieldEdit(e);
+});
+
+$('#form-editor-fields').addEventListener('click', e => {
+  const item = e.target.closest('[data-index]');
+  if (!item) return;
+  const i = Number(item.dataset.index);
+  if (e.target.closest('[data-remove]')) {
+    formEdit.fields.splice(i, 1);
+  } else if (e.target.closest('[data-move]')) {
+    const j = i + Number(e.target.closest('[data-move]').dataset.move);
+    if (j < 0 || j >= formEdit.fields.length) return;
+    [formEdit.fields[i], formEdit.fields[j]] = [formEdit.fields[j], formEdit.fields[i]];
+  } else {
+    return;
+  }
+  renderFormEditor();
+});
+
+document.querySelectorAll('[data-add-field]').forEach(btn => btn.addEventListener('click', () => {
+  const type = btn.dataset.addField;
+  formEdit.fields.push({ id: '', label: '', type, required: false, ...(type === 'select' ? { options: [] } : {}) });
+  renderFormEditor();
+  $('#form-editor-fields').lastElementChild.querySelector('[data-prop="label"]').focus();
+}));
+
+$('#form-editor-cancel').addEventListener('click', closeFormEditor);
+
+$('#form-editor').addEventListener('submit', async e => {
+  e.preventDefault();
+  const form = e.target;
+  $('#form-editor-error').textContent = '';
+  try {
+    const dept = await api('PUT', `/api/settings/departments/${formEdit.deptId}/form`, {
+      enabled: form.elements.enabled.checked,
+      title: form.elements.title.value,
+      fields: formEdit.fields.map(f => ({ ...f, options: f.type === 'select' ? (f.options || []).map(o => o.trim()).filter(Boolean) : undefined })),
+    });
+    closeFormEditor();
+    await refreshDepartments();
+    await loadSettings();
+    showNotice('#dept-notice', dept.form_title
+      ? `Saved. "${dept.form_title}" is on the New ticket page with ${dept.form_fields.length} field${dept.form_fields.length === 1 ? '' : 's'}.`
+      : `Saved. ${dept.name} is not on the New ticket page.`);
+  } catch (err) {
+    $('#form-editor-error').textContent = err.message;
   }
 });
 

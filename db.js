@@ -123,6 +123,15 @@ if (db.prepare('SELECT COUNT(*) AS n FROM departments').get().n === 0) {
   insert.run('IT Support', 'it');
   insert.run('Production', 'production');
 }
+// Each department's form on the New ticket page (see forms.js). form_title NULL = not on the form.
+addColumnIfMissing('departments', 'form_title', 'TEXT');
+if (addColumnIfMissing('departments', 'form_fields', 'TEXT')) {
+  const { DEFAULT_FORMS } = require('./forms');
+  const setForm = db.prepare('UPDATE departments SET form_title = ?, form_fields = ? WHERE request_key = ?');
+  for (const [key, form] of Object.entries(DEFAULT_FORMS)) setForm.run(form.title, JSON.stringify(form.fields), key);
+}
+// The questions and answers a ticket was submitted with (JSON), so later form changes don't alter it
+addColumnIfMissing('tickets', 'form_data', 'TEXT');
 
 // Returns true if the column was added.
 function addColumnIfMissing(table, column, definition) {

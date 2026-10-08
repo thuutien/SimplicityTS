@@ -195,32 +195,10 @@
         <form id="new-ticket-form" class="card">
           <h2>New ticket</h2>
           <label>Request Type
-            <select name="request_type" id="request-type" required>
-              <option value="production" selected>Production Request</option>
-              <option value="it">Report Issue to IT</option>
-            </select>
+            <select name="request_type" id="request-type" required></select>
           </label>
-
-          <!-- Shown for "Production Request". Disabled fieldsets are skipped by validation and form submission. -->
-          <fieldset class="request-fields hidden" data-request-type="production" disabled>
-            <label>Location <input name="location" class="input-short" required maxlength="100"></label>
-            <label>Request
-              <select name="request_item" required>
-                <option value="">Choose a request...</option>
-                <option>Work Cart</option>
-                <option>Empty Cart</option>
-                <option>RMA</option>
-                <option>Tech Issue</option>
-              </select>
-            </label>
-            <label>Additional Info <textarea name="description" rows="4"></textarea></label>
-          </fieldset>
-
-          <!-- Shown for "Report Issue to IT" -->
-          <fieldset class="request-fields hidden" data-request-type="it" disabled>
-            <label>Location <input name="location" class="input-short" required maxlength="100"></label>
-            <label>Issue Description <textarea name="description" rows="5" required></textarea></label>
-          </fieldset>
+          <!-- The chosen department's form (built from Settings > Departments) -->
+          <div id="request-fields"></div>
 
           <button type="submit">Submit ticket</button>
           <p class="error" id="new-ticket-error"></p>
@@ -315,9 +293,9 @@
         </details>
 
         <details class="card settings-section" data-section="departments">
-          <summary><h3>Departments</h3><span class="summary-hint">Add and rename departments</span></summary>
+          <summary><h3>Departments</h3><span class="summary-hint">Add and rename departments, and build their request forms</span></summary>
           <p class="muted">Tickets belong to a department, and agents work on their own department's tickets.
-            Renaming a department keeps all its tickets and agents.</p>
+            Renaming a department keeps all its tickets and agents. Each department can have its own form on the New ticket page.</p>
           <table class="dash-table">
             <thead><tr><th>Name</th><th>New ticket form</th><th class="n">Agents</th><th class="n">Open tickets</th><th class="n">All tickets</th><th></th></tr></thead>
             <tbody id="dept-rows"></tbody>
@@ -328,6 +306,38 @@
           </form>
           <p class="notice hidden" id="dept-notice"></p>
           <p class="error" id="dept-error"></p>
+
+          <!-- Form builder for one department (opened with "Edit form") -->
+          <form id="form-editor" class="form-editor hidden" novalidate>
+            <h3 id="form-editor-title"></h3>
+            <label class="checkbox"><input type="checkbox" name="enabled"> Show this form on the New ticket page</label>
+            <label>Request type name <span class="muted">(shown in the "Request Type" list)</span>
+              <input name="title" class="input-short" maxlength="50" placeholder="e.g. Maintenance Request">
+            </label>
+            <div class="form-editor-columns">
+              <div>
+                <h4>Fields</h4>
+                <ol id="form-editor-fields" class="field-list"></ol>
+                <div class="add-field">
+                  <span class="muted">Add:</span>
+                  <button type="button" class="secondary" data-add-field="text">+ Small textbox</button>
+                  <button type="button" class="secondary" data-add-field="select">+ Dropdown</button>
+                  <button type="button" class="secondary" data-add-field="textarea">+ Text box</button>
+                </div>
+                <p class="muted hint">Tip: a small textbox called "Location" feeds the Dashboard's Top locations,
+                  and the first dropdown feeds its request counts and the ticket title.</p>
+              </div>
+              <div>
+                <h4>Preview</h4>
+                <div id="form-editor-preview" class="form-preview"></div>
+              </div>
+            </div>
+            <div class="form-editor-actions">
+              <button type="submit">Save form</button>
+              <button type="button" class="secondary" id="form-editor-cancel">Cancel</button>
+            </div>
+            <p class="error" id="form-editor-error"></p>
+          </form>
         </details>
 
         <details class="card settings-section" data-section="email">

@@ -43,9 +43,12 @@ Log in with it and change it under **My account**.
 ## Departments
 
 Admins can add and rename departments under **Settings**. Renaming keeps all tickets and agents.
-The two request types on the New ticket form stay linked to their department after a rename:
-"Production Request" → the Production department, "Report Issue to IT" → the IT Support department.
-New departments can have agents and receive tickets moved to them, but have no request type on the form.
+**Request forms:** each department can have its own form on the New ticket page (**Settings → Departments → Edit form**,
+also opened right after adding a department). A form has a request type name (shown in the "Request Type" list) and fields:
+small textbox, dropdown (one choice per line) or text box, each optional or required, in any order, with a live preview.
+Tickets keep a copy of the questions they were submitted with, so editing a form never changes older tickets.
+A small textbox labelled "Location" feeds the Dashboard's Top locations, and the first dropdown feeds its request counts
+and the ticket title. Production and IT Support start with the original two forms.
 
 There are two departments: **IT Support** and **Production**. Every ticket belongs to one, chosen when it is
 created. Admins can put each agent in a department. Agents can see all tickets, but can only work on
@@ -61,7 +64,7 @@ log in, their tickets and comments stay (shown as "Name (deleted)"), and their e
 - **My account:** everyone can change their name, password and theme (Light, Dark or System; also a ☀/🌙 button
   in the top bar). The theme is saved to the account. Only admins can change a user's email (Users page).
 - **Forgot password:** on the login page; sends a reset link that works once and expires after 30 minutes.
-- **New tickets:** choose a Request Type. "Production Request" (Location, Request: Work Cart / Empty Cart / RMA / Tech Issue, optional Additional Info) goes to Production; "Report Issue to IT" (Location, Issue Description) goes to IT Support. The title is generated automatically and priority starts at Medium.
+- **New tickets:** choose a Request Type (one per department form, Production Request by default) and fill in its form. The ticket goes to that department, the title is generated automatically and priority starts at Medium. On the Tickets tab, resting the mouse on a ticket shows a card with everything that was filled in.
 - **Main admin:** the admin whose email is `ADMIN_EMAIL` in `.env` cannot be deleted or lose its admin role, and only
   they can change their own email and password (other admins can send them a reset link).
 - **Admins** can create users with any email (no verification needed), edit them, set a password, or send them a reset link.

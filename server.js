@@ -15,6 +15,7 @@ const { SqliteStore, destroyUserSessions } = require('./session-store');
 const mailer = require('./mailer');
 const { queueEmail, startMailer, getAppUrl, getAppTitle, DEFAULT_APP_TITLE } = mailer;
 const notify = require('./notify');
+const forms = require('./forms');
 const activity = require('./activity');
 const events = require('./events');
 
@@ -394,40 +395,19 @@ app.get('/api/tickets', requireAuth, (req, res) => {
   res.json(db.prepare(sql).all(...params).map(t => ({ ...t, can_work: canWork(req.user, t) })));
 });
 
-// The two request types on the New ticket form. Each goes to the department linked to it by request_key
-// (set in db.js), so departments can be renamed freely.
-const REQUEST_TYPES = {
-  production: { label: 'Production Request' },
-  it: { label: 'Report Issue to IT' },
-};
-const PRODUCTION_REQUESTS = ['Work Cart', 'Empty Cart', 'RMA', 'Tech Issue'];
-
+// The New ticket form: request_type is the id of a department that has a form (Settings > Departments),
+// fields holds the answers by field id. See forms.js.
 app.post('/api/tickets', requireAuth, (req, res) => {
-  const type = REQUEST_TYPES[req.body.request_type];
-  if (!type) return res.status(400).json({ error: 'Please choose a request type' });
-  const location = String(req.body.location || '').trim().slice(0, 100);
-  const description = String(req.body.description || '').trim();
-  if (!location) return res.status(400).json({ error: 'Please enter a location' });
-
-  let title;
-  let requestItem = null;
-  if (req.body.request_type === 'production') {
-    requestItem = req.body.request_item;
-    if (!PRODUCTION_REQUESTS.includes(requestItem)) return res.status(400).json({ error: 'Please choose a request' });
-    title = `${requestItem} – ${location}`;
-  } else {
-    if (!description) return res.status(400).json({ error: 'Please describe the issue' });
-    title = `IT issue – ${location}`;
-  }
-
-  const department = db.prepare('SELECT id FROM departments WHERE request_key = ?').get(req.body.request_type);
-  if (!department) return res.status(500).json({ error: `No department handles "${type.label}" requests` });
+  const department = db.prepare('SELECT * FROM departments WHERE id = ? AND form_title IS NOT NULL').get(Number(req.body.request_type) || 0);
+  if (!department) return res.status(400).json({ error: 'Please choose a request type' });
+  const ticket = forms.readSubmission(department, req.body.fields);
+  if (ticket.error) return res.status(400).json({ error: ticket.error });
 
   // New tickets start at medium priority; agents can change it.
   const { lastInsertRowid } = db.prepare(`
-    INSERT INTO tickets (title, description, priority, department_id, location, request_item, created_by)
-    VALUES (?, ?, 'medium', ?, ?, ?, ?)
-  `).run(title, description, department.id, location, requestItem, req.user.id);
+    INSERT INTO tickets (title, description, priority, department_id, location, request_item, form_data, created_by)
+    VALUES (?, ?, 'medium', ?, ?, ?, ?, ?)
+  `).run(ticket.title, ticket.description, department.id, ticket.location, ticket.request_item, ticket.form_data, req.user.id);
   notify.ticketCreated(lastInsertRowid, req.user.id);
   activity.ticketCreated(lastInsertRowid, req.user.id);
   events.ticketChanged('created', { id: lastInsertRowid, created_by: req.user.id });
@@ -626,6 +606,7 @@ app.get('/api/dashboard', requireAuth, requireStaff, (req, res) => {
     SELECT CASE
              WHEN t.request_item IS NOT NULL THEN t.request_item
              WHEN d.request_key = 'it' THEN 'IT issue'
+             WHEN d.form_title IS NOT NULL THEN d.form_title
              ELSE 'Other'
            END AS type,
            COUNT(*) AS created,
@@ -702,20 +683,23 @@ app.get('/api/activity', requireAuth, requireStaff, (req, res) => {
   res.json({ items, total });
 });
 
+// Departments, with their New ticket forms (form_title null = not on the form)
+const departmentWithForm = d => ({ ...d, form_fields: forms.parseFields(d.form_fields) });
+
 app.get('/api/departments', requireAuth, (req, res) => {
-  res.json(db.prepare('SELECT id, name, request_key FROM departments ORDER BY name').all());
+  res.json(db.prepare('SELECT id, name, request_key, form_title, form_fields FROM departments ORDER BY name').all().map(departmentWithForm));
 });
 
 // ----- Settings: departments (admin only) -----
 
 app.get('/api/settings/departments', requireAuth, requireAdmin, (req, res) => {
   res.json(db.prepare(`
-    SELECT d.id, d.name, d.request_key,
+    SELECT d.id, d.name, d.request_key, d.form_title, d.form_fields,
       (SELECT COUNT(*) FROM users u WHERE u.department_id = d.id AND u.role = 'agent' AND u.deleted_at IS NULL) AS agents,
       (SELECT COUNT(*) FROM tickets t WHERE t.department_id = d.id AND t.status != 'closed') AS open_tickets,
       (SELECT COUNT(*) FROM tickets t WHERE t.department_id = d.id) AS total_tickets
     FROM departments d ORDER BY d.name
-  `).all().map(d => ({ ...d, request_type: REQUEST_TYPES[d.request_key]?.label || null })));
+  `).all().map(departmentWithForm));
 });
 
 function departmentNameError(name, excludeId = null) {
@@ -733,6 +717,23 @@ app.post('/api/settings/departments', requireAuth, requireAdmin, (req, res) => {
   if (error) return res.status(400).json({ error });
   const { lastInsertRowid } = db.prepare('INSERT INTO departments (name) VALUES (?)').run(name);
   res.status(201).json({ id: lastInsertRowid, name });
+});
+
+// Saves a department's New ticket form: { enabled, title, fields }
+app.put('/api/settings/departments/:id/form', requireAuth, requireAdmin, (req, res) => {
+  const department = db.prepare('SELECT * FROM departments WHERE id = ?').get(req.params.id);
+  if (!department) return res.status(404).json({ error: 'Department not found' });
+  const form = forms.validateForm(req.body);
+  if (form.error) return res.status(400).json({ error: form.error });
+  if (form.title && db.prepare('SELECT 1 FROM departments WHERE lower(form_title) = lower(?) AND id != ?').get(form.title, department.id)) {
+    return res.status(400).json({ error: `Another department already uses the request type "${form.title}"` });
+  }
+  if (!form.title && department.form_title
+      && !db.prepare('SELECT 1 FROM departments WHERE form_title IS NOT NULL AND id != ?').get(department.id)) {
+    return res.status(400).json({ error: "This is the only request type on the New ticket form. Turn on another department's form first." });
+  }
+  db.prepare('UPDATE departments SET form_title = ?, form_fields = ? WHERE id = ?').run(form.title, JSON.stringify(form.fields), department.id);
+  res.json(departmentWithForm(db.prepare('SELECT id, name, request_key, form_title, form_fields FROM departments WHERE id = ?').get(department.id)));
 });
 
 // ----- Branding: app title (shown on the login page, so no login needed to read it) -----

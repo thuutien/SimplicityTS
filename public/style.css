@@ -198,6 +198,27 @@ label.button.secondary:hover { background: var(--surface-3); }
 .settings-section > summary:hover h3 { color: var(--link); }
 .settings-section[open] > summary { margin-bottom: 10px; }
 #settings-page h4 { font-size: 14px; margin: 18px 0 8px; color: var(--text-2); }
+/* Form builder (Settings > Departments > Edit form) */
+.form-editor { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+.form-editor-columns { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; }
+@media (max-width: 800px) { .form-editor-columns { grid-template-columns: minmax(0, 1fr); } }
+.field-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.field-item { border: 1px solid var(--line-soft); border-radius: 6px; padding: 8px; background: var(--surface-2); }
+.field-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.field-row input[data-prop="label"] { flex: 1 1 160px; margin: 0; }
+.field-row select { width: auto; margin: 0; }
+.field-row label.checkbox { margin: 0; }
+.field-buttons { margin-left: auto; display: flex; gap: 4px; }
+.field-item textarea { margin: 8px 0 0; }
+.field-empty { padding: 8px 0; }
+button.icon-btn { padding: 4px 9px; line-height: 1; }
+button:disabled { opacity: 0.4; cursor: default; }
+.add-field { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+.add-field button { padding: 5px 10px; font-size: 13px; }
+.form-preview { border: 1px dashed var(--line-strong); border-radius: 6px; padding: 12px; background: var(--surface); }
+.form-preview label:last-child { margin-bottom: 0; }
+.form-editor-actions { display: flex; gap: 8px; margin-top: 16px; }
+.optional { font-weight: 400; font-size: 13px; }
 #settings-page .card + .card { margin-top: 16px; }
 .row > label.grow { flex: 3; }
 .row > label.narrow { flex: 1; }
@@ -422,3 +443,14 @@ tbody tr.clickable:hover { background: var(--surface-3); }
   .row { flex-direction: column; gap: 0; }
   .auth-card { margin: 24px auto; }
 }
+
+/* Hover card on the ticket list: everything the person filled in */
+.ticket-peek { position: fixed; z-index: 50; width: 360px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: hidden;
+  background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); padding: 12px 14px; font-size: 13px; pointer-events: none; }
+.peek-head { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
+.peek-head strong { font-size: 14px; color: var(--text-strong); }
+.peek-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 0; }
+.peek-fields dt { color: var(--muted); font-weight: 600; }
+.peek-fields dd { margin: 0; color: var(--text-strong); overflow-wrap: anywhere; }
+.peek-fields dd.peek-long { white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }

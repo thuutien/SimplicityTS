@@ -1,5 +1,6 @@
 const { db } = require('./db');
 const { queueEmail, getAppUrl } = require('./mailer');
+const { ticketAnswers } = require('./forms');
 
 const ticketUrl = id => `${getAppUrl()}/#ticket/${id}`;
 const label = s => String(s).replace('_', ' ').replace(/^./, c => c.toUpperCase());
@@ -7,7 +8,7 @@ const label = s => String(s).replace('_', ' ').replace(/^./, c => c.toUpperCase(
 const getUser = id => id && db.prepare('SELECT id, first_name, name, email FROM users WHERE id = ? AND deleted_at IS NULL').get(id);
 
 const getTicket = id => db.prepare(`
-  SELECT t.*, d.name AS department_name, d.request_key FROM tickets t
+  SELECT t.*, d.name AS department_name, d.request_key, d.form_title FROM tickets t
   LEFT JOIN departments d ON d.id = t.department_id WHERE t.id = ?
 `).get(id);
 
@@ -40,8 +41,11 @@ function send(recipients, actorId, ticket, build) {
   }
 }
 
-// Request details shown in emails (older tickets may not have location/request)
-const ticketDetails = t => [
+// Request details shown in new-ticket emails: the short answers (small textboxes and dropdowns).
+// Older tickets (before forms) may not have location/request.
+const ticketDetails = t => ticketAnswers(t)
+  ? ticketAnswers(t).filter(a => a.value && a.type !== 'textarea').map(a => `${a.label}: ${a.value}`)
+  : [
   ...(t.request_item ? [`Request: ${t.request_item}`] : []),
   ...(t.location ? [`Location: ${t.location}`] : []),
   ...(!t.request_item && !t.location ? [`Title: ${t.title}`] : []),
@@ -108,8 +112,20 @@ const fmtDate = s => new Date(s.replace(' ', 'T') + 'Z').toLocaleString('en-US',
 const REQUEST_TYPE_NAMES = { production: 'Production Request', it: 'Report Issue to IT' };
 
 // What was requested, so the email can be read on its own:
-// Ticket, Request type, Request, Location, Additional info (IT tickets: Issue description).
+// Ticket, Request type, then every answer on the form (e.g. Request, Location, Additional info).
 function fullTicketDetails(t) {
+  const answers = ticketAnswers(t);
+  if (answers) {
+    return {
+      title: 'Ticket details',
+      rows: [
+        ['Ticket', `#${t.id}`],
+        ['Request type', t.form_title || t.department_name || 'None'],
+        ...answers.filter(a => a.value).map(a => [a.label, a.value]),
+      ],
+    };
+  }
+  // Tickets from before department forms
   const rows = [
     ['Ticket', `#${t.id}`],
     ['Request type', REQUEST_TYPE_NAMES[t.request_key] || t.department_name || 'None'],

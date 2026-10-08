@@ -61,7 +61,7 @@ try {
     Write-Step "Registering Windows service '$ServiceName'"
     if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
         Write-Warn 'Service already exists; reinstalling it with the current settings.'
-        Stop-Service -Name $ServiceName -ErrorAction SilentlyContinue
+        Stop-AppService $ServiceName
         & $nssm remove $ServiceName confirm | Out-Null
     }
     $logDir = Join-Path $AppDir 'logs'

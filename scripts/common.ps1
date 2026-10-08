@@ -1,6 +1,7 @@
 # Shared helpers for the SimplicityTS PowerShell scripts. Dot-source this file: . "$PSScriptRoot\common.ps1"
 
 $AppDir = Split-Path -Parent $PSScriptRoot
+Add-Type -AssemblyName System.ServiceProcess
 
 function Write-Step([string]$Message) {
     Write-Host ""
@@ -66,26 +67,22 @@ function Wait-ServiceStopped([string]$Name, [int]$Seconds) {
     return ((Get-ServiceState $Name) -eq 'Stopped')
 }
 
-# Stops the service even when Windows refuses (e.g. NSSM has it "Paused" because the app kept crashing):
-#   1. Stop-Service   2. nssm stop   3. end the service's processes (NSSM and the node.exe it started)
+# Stops the service even when it hangs in "Stop pending" or Windows refuses (e.g. NSSM has it "Paused"):
+#   1. ask Windows to stop it, wait up to 15 seconds   2. end the service's processes (NSSM and the node.exe it started)
+# Stop-Service and "nssm stop" are not used: they wait forever while the service is stuck in "Stop pending".
 function Stop-AppService([string]$Name) {
     if ((Get-ServiceState $Name) -eq 'Stopped') { return }
 
     try {
-        Stop-Service -Name $Name -ErrorAction Stop
-        if (Wait-ServiceStopped $Name 20) { return }
+        # Sends the stop request and returns straight away (no waiting)
+        $controller = New-Object System.ServiceProcess.ServiceController $Name
+        if ($controller.Status -ne 'StopPending') { $controller.Stop() }
     } catch {
         Write-Warn "Windows could not stop the service ($((Get-ServiceState $Name))): $($_.Exception.Message)"
     }
+    if (Wait-ServiceStopped $Name 15) { return }
 
-    $nssm = Find-Nssm
-    if ($nssm) {
-        Write-Warn 'Asking NSSM to stop it...'
-        & $nssm stop $Name | Out-Null
-        if (Wait-ServiceStopped $Name 20) { return }
-    }
-
-    Write-Warn 'Still running: ending the service processes...'
+    Write-Warn "Service is still '$(Get-ServiceState $Name)': ending the service processes..."
     $svc = Get-CimInstance Win32_Service -Filter "Name='$Name'" -ErrorAction SilentlyContinue
     if ($svc -and $svc.ProcessId -gt 0) {
         # node.exe (and anything else) started by NSSM first, then NSSM itself
@@ -93,6 +90,10 @@ function Stop-AppService([string]$Name) {
             ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
         Stop-Process -Id $svc.ProcessId -Force -ErrorAction SilentlyContinue
     }
+    # A node.exe left behind from this app folder would keep the port busy
+    Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -and $_.CommandLine.Contains((Join-Path $AppDir 'server.js')) } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     if (-not (Wait-ServiceStopped $Name 15)) {
         throw "Could not stop the $Name service (status: $(Get-ServiceState $Name)). Restart the server, then run the update again."
     }

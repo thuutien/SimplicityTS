@@ -889,10 +889,10 @@ function ticketAnswers(t) {
   ];
 }
 
-// The answers on the ticket page: short answers as chips, text boxes as highlighted blocks
+// The answers on the ticket page: who created it and the short answers as chips, text boxes as highlighted blocks
 function ticketRequestHtml(t) {
   const answers = ticketAnswers(t);
-  const chips = answers.filter(a => a.type !== 'textarea');
+  const chips = [{ label: 'Created by', value: t.created_by_name }, ...answers.filter(a => a.type !== 'textarea')];
   const boxes = answers.filter(a => a.type === 'textarea');
   return `
     ${chips.length ? `<div class="request-details">${chips.map(a => `
@@ -965,7 +965,6 @@ async function openTicket(id) {
       <span>Status: ${badge(t.status)}</span>
       <span>Department: ${esc(t.department_name) || 'None'}</span>
       <span>Priority: ${badge(t.priority)}</span>
-      <span>Created by: ${esc(t.created_by_name)}</span>
       <span>Assigned to: ${esc(t.assigned_to_name) || 'Unassigned'}</span>
       <span>Created: ${fmtDate(t.created_at)}</span>
     </div>

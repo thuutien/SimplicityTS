@@ -64,7 +64,7 @@ log in, their tickets and comments stay (shown as "Name (deleted)"), and their e
 - **My account:** everyone can change their name, password and theme (Light, Dark or System; also a ☀/🌙 button
   in the top bar). The theme is saved to the account. Only admins can change a user's email (Users page).
 - **Forgot password:** on the login page; sends a reset link that works once and expires after 30 minutes.
-- **New tickets:** choose a Request Type (one per department form, Production Request by default) and fill in its form. The ticket goes to that department, the title is generated automatically and priority starts at Medium. On the Tickets tab, resting the mouse on a ticket shows a card with everything that was filled in.
+- **New tickets:** choose a Request Type from the tabs (one per department form, Production Request by default) and fill in its form. The ticket goes to that department, the title is generated automatically and priority starts at Medium. On the Tickets tab, resting the mouse on a ticket shows a card with everything that was filled in.
 - **Main admin:** the admin whose email is `ADMIN_EMAIL` in `.env` cannot be deleted or lose its admin role, and only
   they can change their own email and password (other admins can send them a reset link).
 - **Admins** can create users with any email (no verification needed), edit them, set a password, or send them a reset link.
@@ -82,12 +82,15 @@ immediately, no restart needed. Values saved there override `.env`; empty fields
 
 | Event | Who gets an email |
 |---|---|
-| Ticket created | Agents in the ticket's department (admins if the department has no agents) |
+| Ticket created | Agents in the ticket's department, plus admins who follow it (every admin if that is nobody) |
 | Ticket assigned | The new assignee |
 | Status changed | The person who created the ticket |
 | Comment by staff | The ticket creator (and assignee) |
-| Comment by the creator | The assignee, or every agent in the department plus all admins if unassigned |
-| Ticket moved to another department | That department's agents |
+| Comment by the creator | The assignee, or (if unassigned) the department's agents plus admins who follow it |
+| Ticket moved to another department | That department's agents, plus admins who follow it |
+
+**Admin email alerts** (**Settings → Admin email alerts**): choose for each admin whether they follow all departments
+(the default, including departments added later) or only some. Changes save straight away.
 
 All emails about a ticket share the same subject (`[#42] Work Cart – Line 3`) and thread headers, so mail apps
 such as Gmail group them into one conversation. Nobody is emailed about their own actions. Every email is logged in the `email_outbox` table; failed sends are retried up to 5 times.

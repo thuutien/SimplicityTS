@@ -218,6 +218,9 @@ function verifyPassword(password, stored) {
 addColumnIfMissing('users', 'is_protected', 'INTEGER NOT NULL DEFAULT 0');
 // Appearance: 'system' (follow the device), 'light' or 'dark'
 addColumnIfMissing('users', 'theme', "TEXT NOT NULL DEFAULT 'system'");
+// Admins: which departments' ticket alerts they get (Settings > Admin email alerts).
+// NULL = all departments, otherwise a JSON list of department ids ("[]" = none).
+addColumnIfMissing('users', 'alert_departments', 'TEXT');
 
 // On first run, create the first admin from ADMIN_EMAIL / ADMIN_PASSWORD in .env.
 // If no password is set, a random one is generated and printed once to the console.

@@ -194,9 +194,9 @@
       <div id="new-page" class="page">
         <form id="new-ticket-form" class="card">
           <h2>New ticket</h2>
-          <label>Request Type
-            <select name="request_type" id="request-type" required></select>
-          </label>
+          <div class="field-label" id="request-type-label">Request Type</div>
+          <!-- One tab per department form (radio buttons, so arrow keys move between them) -->
+          <div id="request-type" class="request-tabs" role="radiogroup" aria-labelledby="request-type-label"></div>
           <!-- The chosen department's form (built from Settings > Departments) -->
           <div id="request-fields"></div>
 
@@ -338,6 +338,18 @@
             </div>
             <p class="error" id="form-editor-error"></p>
           </form>
+        </details>
+
+        <details class="card settings-section" data-section="alerts">
+          <summary><h3>Admin email alerts</h3><span class="summary-hint">Which departments' ticket alerts each admin gets</span></summary>
+          <p class="muted">Admins get the same alerts as a department's agents: new tickets, tickets moved to the department,
+            and replies from the employee while nobody is assigned. If a department has no agents and no admin follows it,
+            every admin gets its alerts so no ticket is missed. Changes save straight away.</p>
+          <table class="dash-table alerts-table">
+            <thead><tr><th>Admin</th><th>Gets alerts for</th></tr></thead>
+            <tbody id="alert-rows"></tbody>
+          </table>
+          <p class="error" id="alerts-error"></p>
         </details>
 
         <details class="card settings-section" data-section="email">

@@ -18,14 +18,26 @@ const departmentAgents = departmentId => db.prepare(`
 `).all(departmentId);
 
 const admins = () => db.prepare(`
-  SELECT id, first_name, name, email FROM users
+  SELECT id, first_name, name, email, alert_departments FROM users
   WHERE role = 'admin' AND deleted_at IS NULL AND email_verified_at IS NOT NULL
 `).all();
 
-// Agents in the department; falls back to admins if the department has no agents, so tickets are never missed.
+// Does this admin get the department's alerts? (Settings > Admin email alerts; NULL = all departments)
+function adminFollows(admin, departmentId) {
+  if (admin.alert_departments == null) return true;
+  try {
+    return JSON.parse(admin.alert_departments).includes(departmentId);
+  } catch {
+    return true;
+  }
+}
+
+// Agents in the department plus the admins who follow it. If that is nobody, every admin gets it,
+// so tickets are never missed.
 function departmentRecipients(departmentId) {
-  const agents = departmentAgents(departmentId);
-  return agents.length ? agents : admins();
+  const everyAdmin = admins();
+  const recipients = [...departmentAgents(departmentId), ...everyAdmin.filter(a => adminFollows(a, departmentId))];
+  return recipients.length ? recipients : everyAdmin;
 }
 
 // Sends to each recipient once, never to the person who made the change.
@@ -153,10 +165,10 @@ function commentAdded(ticketId, actorId, body, commentId) {
   const t = getTicket(ticketId);
   const actor = getUser(actorId);
 
-  // Creator replied -> the assigned agent, or (if nobody is assigned) every agent in the department plus all admins.
-  // Anyone else replied -> the creator (and the assignee, if it wasn't them).
+  // Creator replied -> the assigned agent, or (if nobody is assigned) every agent in the department plus the
+  // admins who follow it. Anyone else replied -> the creator (and the assignee, if it wasn't them).
   const recipients = actorId === t.created_by
-    ? (t.assigned_to ? [getUser(t.assigned_to)] : [...departmentAgents(t.department_id), ...admins()])
+    ? (t.assigned_to ? [getUser(t.assigned_to)] : departmentRecipients(t.department_id))
     : [getUser(t.created_by), getUser(t.assigned_to)];
 
   const details = fullTicketDetails(t);

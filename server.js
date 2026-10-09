@@ -556,9 +556,10 @@ app.get('/api/summary', requireAuth, requireStaff, (req, res) => {
   }));
 
   const requestsToday = db.prepare(`
-    SELECT request_item AS item, COUNT(*) AS count FROM tickets
-    WHERE request_item IS NOT NULL AND created_at >= ? AND created_at < ?
-    GROUP BY request_item ORDER BY count DESC, request_item
+    SELECT t.request_item AS item, COUNT(*) AS count FROM tickets t
+    JOIN departments d ON d.id = t.department_id AND d.request_key = 'production' -- the "Production requests today" panel
+    WHERE t.request_item IS NOT NULL AND t.created_at >= ? AND t.created_at < ?
+    GROUP BY t.request_item ORDER BY count DESC, t.request_item
   `).all(from, to);
 
   res.json({ today, open, departments, requests_today: requestsToday });
@@ -734,6 +735,40 @@ app.put('/api/settings/departments/:id/form', requireAuth, requireAdmin, (req, r
   }
   db.prepare('UPDATE departments SET form_title = ?, form_fields = ? WHERE id = ?').run(form.title, JSON.stringify(form.fields), department.id);
   res.json(departmentWithForm(db.prepare('SELECT id, name, request_key, form_title, form_fields FROM departments WHERE id = ?').get(department.id)));
+});
+
+// ----- Settings: which departments' ticket alerts each admin gets -----
+// alert_departments: NULL = all departments, or a JSON list of department ids ("[]" = none)
+
+const adminAlerts = u => {
+  let departments = null;
+  try {
+    departments = u.alert_departments == null ? null : JSON.parse(u.alert_departments);
+  } catch {
+    // unreadable: treated as all departments, the same as notify.js
+  }
+  return { id: u.id, name: u.name, email: u.email, verified: !!u.verified, all: departments === null, departments: departments || [] };
+};
+
+app.get('/api/settings/alerts', requireAuth, requireAdmin, (req, res) => {
+  res.json(db.prepare(`
+    SELECT id, name, email, alert_departments, email_verified_at IS NOT NULL AS verified FROM users
+    WHERE role = 'admin' AND deleted_at IS NULL ORDER BY first_name, last_name
+  `).all().map(adminAlerts));
+});
+
+// Body: { all: true } or { all: false, departments: [ids] }
+app.put('/api/settings/alerts/:id', requireAuth, requireAdmin, (req, res) => {
+  const user = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'admin' AND deleted_at IS NULL").get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Admin not found' });
+  let value = null;
+  if (!req.body.all) {
+    const known = new Set(db.prepare('SELECT id FROM departments').all().map(d => d.id));
+    const ids = [...new Set((Array.isArray(req.body.departments) ? req.body.departments : []).map(Number))].filter(id => known.has(id));
+    value = JSON.stringify(ids);
+  }
+  db.prepare('UPDATE users SET alert_departments = ? WHERE id = ?').run(value, user.id);
+  res.json(adminAlerts({ ...user, alert_departments: value, verified: user.email_verified_at != null }));
 });
 
 // ----- Branding: app title (shown on the login page, so no login needed to read it) -----

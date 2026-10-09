@@ -834,19 +834,26 @@ function requestTypes() {
   return departments.filter(d => d.form_title).sort((a, b) => rank(a) - rank(b) || a.form_title.localeCompare(b.form_title));
 }
 
+// The chosen request type (department id), or '' if there are none
+const selectedRequestType = () => document.querySelector('#request-type input:checked')?.value || '';
+
+// Tabs for the request types; keeps the current choice, otherwise the first (Production Request) is chosen
 function fillRequestTypes() {
-  const sel = $('#request-type');
-  const selected = sel.value;
   const types = requestTypes();
-  sel.innerHTML = types.map(d => `<option value="${d.id}">${esc(d.form_title)}</option>`).join('');
-  if (types.some(d => String(d.id) === selected)) sel.value = selected;
+  const current = selectedRequestType();
+  const selected = types.some(d => String(d.id) === current) ? current : String(types[0]?.id ?? '');
+  $('#request-type').innerHTML = types.map(d => `
+    <label class="request-tab">
+      <input type="radio" name="request_type" value="${d.id}" ${String(d.id) === selected ? 'checked' : ''}>
+      <span>${esc(d.form_title)}</span>
+    </label>`).join('');
   showRequestFields();
 }
 
 // Show the chosen request type's fields. Left alone if the form hasn't changed, so typed answers stay.
 let shownForm = '';
 function showRequestFields() {
-  const dept = departments.find(d => String(d.id) === $('#request-type').value);
+  const dept = departments.find(d => String(d.id) === selectedRequestType());
   const key = dept ? JSON.stringify([dept.id, dept.form_fields]) : '';
   if (key === shownForm) return;
   shownForm = key;
@@ -861,7 +868,7 @@ $('#new-ticket-form').addEventListener('submit', async e => {
     if (name.startsWith('f:')) fields[name.slice(2)] = value;
   }
   try {
-    const ticket = await api('POST', '/api/tickets', { request_type: $('#request-type').value, fields });
+    const ticket = await api('POST', '/api/tickets', { request_type: selectedRequestType(), fields });
     e.target.reset();
     shownForm = '';
     fillRequestTypes();
@@ -1280,6 +1287,7 @@ $('#user-form').addEventListener('submit', async e => {
 async function loadSettings() {
   loadGeneralSettings();
   loadEmailSettings();
+  loadAlertSettings();
   showNotice('#dept-notice', '');
   $('#dept-error').textContent = '';
   const rows = await api('GET', '/api/settings/departments');
@@ -1344,6 +1352,54 @@ $('#dept-add-form').addEventListener('submit', async e => {
   } catch (err) {
     showNotice('#dept-notice', '');
     $('#dept-error').textContent = err.message;
+  }
+});
+
+// ----- Admin email alerts: all departments, or chosen ones -----
+
+async function loadAlertSettings() {
+  $('#alerts-error').textContent = '';
+  const admins = await api('GET', '/api/settings/alerts');
+  $('#alert-rows').innerHTML = admins.map(a => `
+    <tr data-admin="${a.id}">
+      <td>
+        <strong>${esc(a.name)}</strong>${a.id === me.id ? ' <span class="muted">(you)</span>' : ''}
+        <div class="muted small">${esc(a.email)}${a.verified ? '' : ' &middot; email not verified, gets no emails'}</div>
+      </td>
+      <td>
+        <div class="alert-choices">
+          <label class="checkbox alert-all"><input type="checkbox" data-all ${a.all ? 'checked' : ''}> All departments</label>
+          ${departments.map(d => `
+            <label class="checkbox"><input type="checkbox" data-dept="${d.id}" ${a.all || a.departments.includes(d.id) ? 'checked' : ''} ${a.all ? 'disabled' : ''}>
+              <span class="dot ${deptColorClass(d.name)}" aria-hidden="true"></span>${esc(d.name)}</label>`).join('')}
+          <span class="save-status" role="status" aria-live="polite"></span>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+$('#alert-rows').addEventListener('change', async e => {
+  const row = e.target.closest('tr[data-admin]');
+  if (!row) return;
+  const allBox = row.querySelector('[data-all]');
+  const deptBoxes = [...row.querySelectorAll('[data-dept]')];
+  if (e.target === allBox) {
+    // "All" ticks and locks every department; unticking it keeps them ticked so one can be removed
+    deptBoxes.forEach(b => { b.disabled = allBox.checked; if (allBox.checked) b.checked = true; });
+  }
+  const status = row.querySelector('.save-status');
+  $('#alerts-error').textContent = '';
+  status.textContent = 'Saving...';
+  try {
+    await api('PUT', `/api/settings/alerts/${row.dataset.admin}`, {
+      all: allBox.checked,
+      departments: deptBoxes.filter(b => b.checked).map(b => Number(b.dataset.dept)),
+    });
+    status.textContent = 'Saved';
+    setTimeout(() => { if (status.textContent === 'Saved') status.textContent = ''; }, 2000);
+  } catch (err) {
+    status.textContent = '';
+    $('#alerts-error').textContent = err.message;
   }
 });
 

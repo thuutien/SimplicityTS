@@ -454,3 +454,22 @@ tbody tr.clickable:hover { background: var(--surface-3); }
 .peek-fields dt { color: var(--muted); font-weight: 600; }
 .peek-fields dd { margin: 0; color: var(--text-strong); overflow-wrap: anywhere; }
 .peek-fields dd.peek-long { white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* New ticket: request types as tabs (radio buttons underneath) */
+.field-label { font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+.request-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line-soft); }
+label.request-tab { display: inline-block; margin: 0; cursor: pointer; }
+.request-tab input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.request-tab span { display: inline-block; padding: 8px 16px; border: 1px solid var(--line-strong); border-radius: 6px;
+  background: var(--surface); color: var(--text-2); font-weight: 500; transition: background 0.1s, border-color 0.1s; }
+.request-tab:hover span { background: var(--surface-3); }
+.request-tab input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
+.request-tab input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Settings > Admin email alerts */
+.alerts-table td { vertical-align: top; }
+.alert-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
+.alert-choices label.checkbox { margin: 0; }
+.alert-choices .alert-all { font-weight: 600; padding-right: 18px; border-right: 1px solid var(--line-strong); }
+.alert-choices .dot { margin-right: 2px; }
+.muted.small { font-size: 12px; margin-top: 2px; }

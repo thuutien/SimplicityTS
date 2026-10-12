@@ -497,8 +497,12 @@ app.patch('/api/tickets/:id', requireAuth, (req, res) => {
   if (updates.status && updates.status !== 'resolved') sets += ', resolved_at = NULL';
   db.prepare(`UPDATE tickets SET ${sets}, updated_at = datetime('now') WHERE id = ?`)
     .run(...Object.values(updates), ticket.id);
-  notify.ticketUpdated(ticket, req.user.id);
-  activity.ticketUpdated(ticket, req.user.id);
+  // An agent or admin closing a ticket that wasn't Resolved yet resolves it on the way:
+  // the activity shows Open → Resolved, then Resolved → Closed.
+  const resolvedOnClose = canWork(req.user, ticket) && updates.status === 'closed' && !['resolved', 'closed'].includes(ticket.status);
+  if (resolvedOnClose) activity.statusChanged(ticket, req.user.id, ticket.status, 'resolved');
+  notify.ticketUpdated(ticket, req.user.id, { resolvedOnClose });
+  activity.ticketUpdated(resolvedOnClose ? { ...ticket, status: 'resolved' } : ticket, req.user.id);
   events.ticketChanged('updated', ticket);
   res.json(db.prepare(`${TICKET_SELECT} WHERE t.id = ?`).get(ticket.id));
 });

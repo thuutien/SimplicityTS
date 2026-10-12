@@ -61,6 +61,7 @@ Each ticket page has an **Activity** list on the right (below the comments on na
 claimed, released or assigned it, and replied, newest first. Anyone who can open the ticket can see it.
 
 **Resolved vs. Closed:** Resolved means the agent thinks it's fixed; the ticket still counts as open. Closed means done.
+When an agent or admin closes a ticket that wasn't Resolved yet, it is recorded as resolved and closed (two activity entries).
 Resolved tickets close automatically after 3 days (**Settings → General → Resolved tickets**; 0 = never). The count starts
 when the ticket is marked Resolved and restarts when the person who raised it replies. The app checks every hour, logs
 "Auto-close" in the ticket's activity and emails the creator.

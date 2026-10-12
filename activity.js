@@ -19,7 +19,7 @@ function ticketCreated(ticketId, userId) {
 // Compares the ticket before and after an update and logs each change.
 function ticketUpdated(before, userId) {
   const t = db.prepare('SELECT * FROM tickets WHERE id = ?').get(before.id);
-  if (t.status !== before.status) log(userId, t, 'status', `${label(before.status)} → ${label(t.status)}`);
+  if (t.status !== before.status) statusChanged(t, userId, before.status, t.status);
   if (t.priority !== before.priority) log(userId, t, 'priority', `${label(before.priority)} → ${label(t.priority)}`);
   if (t.department_id !== before.department_id) log(userId, t, 'department', deptName(t.department_id));
   if (t.assigned_to !== before.assigned_to) {
@@ -28,6 +28,10 @@ function ticketUpdated(before, userId) {
     else if (before.assigned_to === userId) log(userId, t, 'released');
     else log(userId, t, 'unassigned', userName(before.assigned_to));
   }
+}
+
+function statusChanged(ticket, userId, from, to) {
+  log(userId, ticket, 'status', `${label(from)} → ${label(to)}`);
 }
 
 function commentAdded(ticket, userId, body) {
@@ -43,4 +47,4 @@ function autoClosed(ticket, userId, days) {
   log(userId, ticket, 'auto_closed', String(days));
 }
 
-module.exports = { ticketCreated, ticketUpdated, commentAdded, ticketDeleted, autoClosed };
+module.exports = { ticketCreated, ticketUpdated, statusChanged, commentAdded, ticketDeleted, autoClosed };

@@ -80,7 +80,8 @@ function ticketCreated(ticketId, actorId) {
 }
 
 // Called after a ticket update with the ticket as it was before the change.
-function ticketUpdated(before, actorId) {
+// resolvedOnClose: an agent closed a ticket that wasn't Resolved yet, so it was resolved and closed in one go.
+function ticketUpdated(before, actorId, { resolvedOnClose = false } = {}) {
   const t = getTicket(before.id);
   const actor = getUser(actorId);
   const creator = getUser(t.created_by);
@@ -90,7 +91,9 @@ function ticketUpdated(before, actorId) {
     send([creator], actorId, t, user => ({
       greeting: `Hi ${user.first_name},`,
       lines: [
-        `${actor.name} changed the status of your ticket from ${label(before.status)} to ${label(t.status)}.`,
+        resolvedOnClose
+          ? `${actor.name} resolved and closed your ticket (it was ${label(before.status)}).`
+          : `${actor.name} changed the status of your ticket from ${label(before.status)} to ${label(t.status)}.`,
         ...(t.status === 'resolved' ? ['If the problem is not fixed, reply with a comment on the ticket and we will take another look.'] : []),
       ],
       button: { label: 'View ticket', url: ticketUrl(t.id) },

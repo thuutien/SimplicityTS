@@ -193,6 +193,18 @@ if (!activityExisted) {
   `);
 }
 
+// When the ticket was marked Resolved (resolved tickets close automatically after a few days).
+// Tickets already resolved use the time of their last "→ Resolved" change, or their last update.
+if (addColumnIfMissing('tickets', 'resolved_at', 'TEXT')) {
+  db.exec(`
+    UPDATE tickets SET resolved_at = COALESCE(
+      (SELECT MAX(a.created_at) FROM activity_log a
+       WHERE a.ticket_id = tickets.id AND a.action = 'status' AND a.details LIKE '% Resolved'),
+      updated_at)
+    WHERE status = 'resolved'
+  `);
+}
+
 function getSetting(key, createValue) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
   if (row) return row.value;

@@ -38,4 +38,9 @@ function ticketDeleted(ticket, userId) {
   log(userId, ticket, 'deleted');
 }
 
-module.exports = { ticketCreated, ticketUpdated, commentAdded, ticketDeleted };
+// Closed by the app after `days` days as Resolved. userId is whoever resolved it; the entry is shown as automatic.
+function autoClosed(ticket, userId, days) {
+  log(userId, ticket, 'auto_closed', String(days));
+}
+
+module.exports = { ticketCreated, ticketUpdated, commentAdded, ticketDeleted, autoClosed };

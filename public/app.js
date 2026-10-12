@@ -375,9 +375,15 @@ function activityText(a, quoteLength) {
     case 'released': return 'released the ticket';
     case 'comment': return `replied <span class="quote">“${esc(quote)}”</span>`;
     case 'deleted': return 'deleted a ticket';
+    case 'auto_closed': return `closed the ticket after <strong>${esc(a.details)} ${a.details === '1' ? 'day' : 'days'}</strong> as Resolved`;
     default: return esc(a.action);
   }
 }
+
+// Who did it. Automatic closes are done by the app, not by a person.
+const activityWho = (a, withRole) => a.action === 'auto_closed'
+  ? '<strong>Auto-close</strong>'
+  : `<strong>${esc(a.user_name)}</strong>${withRole ? ' ' + badge(a.user_role) : ''}`;
 
 const ticketRef = a => `<span class="ticket-ref ${a.ticket_exists ? '' : 'gone'}" title="${a.ticket_exists ? '' : 'Ticket deleted'}">#${a.ticket_id} ${esc(a.ticket_title || '')}</span>`;
 
@@ -396,7 +402,7 @@ async function loadActivity() {
   $('#activity-list').innerHTML = data.items.length
     ? data.items.map(a => `
         <li class="${a.ticket_exists ? 'clickable' : ''}" data-ticket="${a.ticket_exists ? a.ticket_id : ''}">
-          <div><strong>${esc(a.user_name)}</strong> <span class="what">${activityText(a, 60)}</span></div>
+          <div>${activityWho(a)} <span class="what">${activityText(a, 60)}</span></div>
           <div>${ticketRef(a)} <span class="when" title="${esc(fmtDate(a.created_at))}">· ${timeAgo(a.created_at)}</span></div>
         </li>`).join('')
     : '<li class="muted">No activity found.</li>';
@@ -422,7 +428,7 @@ async function loadAllActivity(reset) {
   $('#activity-all-rows').insertAdjacentHTML('beforeend', data.items.map(a => `
     <tr class="${a.ticket_exists ? 'clickable' : ''}" data-ticket="${a.ticket_exists ? a.ticket_id : ''}">
       <td title="${esc(timeAgo(a.created_at))}">${esc(fmtDate(a.created_at))}</td>
-      <td><strong>${esc(a.user_name)}</strong> ${badge(a.user_role)}</td>
+      <td>${activityWho(a, true)}</td>
       <td>${activityText(a, 200)}</td>
       <td>${ticketRef(a)}</td>
     </tr>`).join(''));
@@ -991,7 +997,7 @@ async function openTicket(id) {
   $('#ticket-activity').innerHTML = t.activity.length
     ? t.activity.map(a => `
         <li>
-          <div><strong>${esc(a.user_name)}</strong> ${badge(a.user_role)} <span class="what">${a.action === 'created' ? 'created the ticket' : activityText(a, 80)}</span></div>
+          <div>${activityWho(a, true)} <span class="what">${a.action === 'created' ? 'created the ticket' : activityText(a, 80)}</span></div>
           <div class="when">${fmtDate(a.created_at)}</div>
         </li>`).join('')
     : '<li class="muted">No activity yet.</li>';
@@ -1687,7 +1693,25 @@ async function loadGeneralSettings() {
   showNotice('#icon-notice', '');
   $('#icon-error').textContent = '';
   renderIconSetting(s.icon_version);
+  $('#auto-close-form').elements.days.value = s.auto_close_days;
+  showNotice('#auto-close-notice', '');
+  $('#auto-close-error').textContent = '';
 }
+
+$('#auto-close-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  showNotice('#auto-close-notice', '');
+  $('#auto-close-error').textContent = '';
+  try {
+    const { auto_close_days: days } = await api('PUT', '/api/settings/general/auto-close', { days: Number(e.target.elements.days.value) });
+    e.target.elements.days.value = days;
+    showNotice('#auto-close-notice', days
+      ? `Saved. Resolved tickets now close after ${days} ${days === 1 ? 'day' : 'days'}.`
+      : 'Saved. Resolved tickets stay open until someone closes them.');
+  } catch (err) {
+    $('#auto-close-error').textContent = err.message;
+  }
+});
 
 $('#general-settings-form').addEventListener('submit', async e => {
   e.preventDefault();

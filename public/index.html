@@ -276,7 +276,7 @@
       <div id="settings-page" class="page">
         <h2>Settings</h2>
         <details class="card settings-section" data-section="general">
-          <summary><h3>General</h3><span class="summary-hint">App title and icon</span></summary>
+          <summary><h3>General</h3><span class="summary-hint">App title, icon and auto-close</span></summary>
           <form id="general-settings-form" autocomplete="off">
             <label>App title
               <input name="app_title" maxlength="60" placeholder="Ticket System">
@@ -299,6 +299,18 @@
           </div>
           <p class="notice hidden" id="icon-notice"></p>
           <p class="error" id="icon-error"></p>
+
+          <h4>Resolved tickets</h4>
+          <form id="auto-close-form" autocomplete="off">
+            <label>Close resolved tickets automatically after
+              <span class="inline-number"><input type="number" name="days" min="0" max="365" step="1" required> days</span>
+            </label>
+            <p class="hint">Counted from when the ticket was marked Resolved; a reply from the person who raised it restarts the count.
+              The creator gets an email when it closes. Enter 0 to never close them automatically.</p>
+            <div class="form-actions"><button type="submit">Save</button></div>
+            <p class="notice hidden" id="auto-close-notice"></p>
+            <p class="error" id="auto-close-error"></p>
+          </form>
         </details>
 
         <details class="card settings-section" data-section="departments">

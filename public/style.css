@@ -481,3 +481,5 @@ label.request-tab { display: inline-block; margin: 0; cursor: pointer; }
 .alert-choices .alert-all { font-weight: 600; padding-right: 18px; border-right: 1px solid var(--line-strong); }
 .alert-choices .dot { margin-right: 2px; }
 .muted.small { font-size: 12px; margin-top: 2px; }
+.inline-number { display: inline-flex; align-items: center; gap: 8px; margin-left: 8px; }
+.inline-number input { width: 90px; margin: 0; }

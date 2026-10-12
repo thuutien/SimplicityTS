@@ -118,6 +118,19 @@ function ticketUpdated(before, actorId) {
   }
 }
 
+// Resolved ticket closed automatically -> the person who raised it
+function ticketAutoClosed(ticketId, days) {
+  const t = getTicket(ticketId);
+  send([getUser(t.created_by)], null, t, user => ({
+    greeting: `Hi ${user.first_name},`,
+    lines: [
+      `Your ticket was marked Resolved more than ${days} ${days === 1 ? 'day' : 'days'} ago and has had no further reply, so it has been closed.`,
+      'If the problem is still there, please create a new ticket.',
+    ],
+    button: { label: 'View ticket', url: ticketUrl(t.id) },
+  }));
+}
+
 // Database times are UTC ("YYYY-MM-DD HH:MM:SS"); show them in the server's local time.
 const fmtDate = s => new Date(s.replace(' ', 'T') + 'Z').toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -183,4 +196,4 @@ function commentAdded(ticketId, actorId, body, commentId) {
   }));
 }
 
-module.exports = { ticketCreated, ticketUpdated, commentAdded };
+module.exports = { ticketCreated, ticketUpdated, commentAdded, ticketAutoClosed };

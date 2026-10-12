@@ -18,6 +18,7 @@ const notify = require('./notify');
 const forms = require('./forms');
 const activity = require('./activity');
 const events = require('./events');
+const autoClose = require('./autoclose');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -491,6 +492,9 @@ app.patch('/api/tickets/:id', requireAuth, (req, res) => {
   // Remember when a ticket was closed (for "closed today"); clear it if the ticket is reopened.
   if (updates.status === 'closed' && ticket.status !== 'closed') sets += ", closed_at = datetime('now')";
   if (updates.status && updates.status !== 'closed') sets += ', closed_at = NULL';
+  // Start the auto-close countdown when a ticket is resolved; stop it when the status changes again.
+  if (updates.status === 'resolved' && ticket.status !== 'resolved') sets += ", resolved_at = datetime('now')";
+  if (updates.status && updates.status !== 'resolved') sets += ', resolved_at = NULL';
   db.prepare(`UPDATE tickets SET ${sets}, updated_at = datetime('now') WHERE id = ?`)
     .run(...Object.values(updates), ticket.id);
   notify.ticketUpdated(ticket, req.user.id);
@@ -519,6 +523,10 @@ app.post('/api/tickets/:id/comments', requireAuth, (req, res) => {
 
   const { lastInsertRowid: commentId } = db.prepare('INSERT INTO comments (ticket_id, user_id, body) VALUES (?, ?, ?)').run(ticket.id, req.user.id, body);
   db.prepare("UPDATE tickets SET updated_at = datetime('now') WHERE id = ?").run(ticket.id);
+  // The creator replying to a resolved ticket (e.g. "still broken") restarts its auto-close countdown
+  if (ticket.status === 'resolved' && ticket.created_by === req.user.id) {
+    db.prepare("UPDATE tickets SET resolved_at = datetime('now') WHERE id = ?").run(ticket.id);
+  }
   notify.commentAdded(ticket.id, req.user.id, body, commentId);
   activity.commentAdded(ticket, req.user.id, body);
   events.ticketChanged('updated', ticket);
@@ -630,7 +638,7 @@ app.get('/api/dashboard', requireAuth, requireStaff, (req, res) => {
       (SELECT COUNT(*) FROM activity_log a WHERE a.user_id = u.id AND a.action = 'status'
          AND a.details LIKE '% Closed' AND ${inRange('a.created_at')}) AS closed,
       (SELECT COUNT(*) FROM activity_log a WHERE a.user_id = u.id AND a.action = 'comment' AND ${inRange('a.created_at')}) AS replies,
-      (SELECT COUNT(*) FROM activity_log a WHERE a.user_id = u.id AND ${inRange('a.created_at')}) AS actions
+      (SELECT COUNT(*) FROM activity_log a WHERE a.user_id = u.id AND a.action != 'auto_closed' AND ${inRange('a.created_at')}) AS actions
     FROM users u LEFT JOIN departments d ON d.id = u.department_id
     WHERE u.role IN ('agent', 'admin') AND u.deleted_at IS NULL
     ORDER BY actions DESC, u.name
@@ -798,7 +806,10 @@ app.get('/api/branding/icon', (req, res) => {
 });
 
 app.get('/api/settings/general', requireAuth, requireAdmin, (req, res) => {
-  res.json({ app_title: getAppTitle(), default_app_title: DEFAULT_APP_TITLE, icon_version: getIconVersion() });
+  res.json({
+    app_title: getAppTitle(), default_app_title: DEFAULT_APP_TITLE, icon_version: getIconVersion(),
+    auto_close_days: autoClose.getAutoCloseDays(),
+  });
 });
 
 // Upload (icon = data URL) or remove (icon = null) the login page icon.
@@ -827,6 +838,17 @@ app.put('/api/settings/general', requireAuth, requireAdmin, (req, res) => {
     db.prepare("DELETE FROM settings WHERE key = 'app.title'").run(); // empty = back to the default
   }
   res.json({ app_title: getAppTitle() });
+});
+
+// Close resolved tickets after this many days (0 = never)
+app.put('/api/settings/general/auto-close', requireAuth, requireAdmin, (req, res) => {
+  const days = Number(req.body.days);
+  if (!Number.isInteger(days) || days < 0 || days > autoClose.MAX_DAYS) {
+    return res.status(400).json({ error: `Enter a whole number of days from 0 to ${autoClose.MAX_DAYS}` });
+  }
+  autoClose.setAutoCloseDays(days);
+  autoClose.closeResolvedTickets(); // a shorter wait applies straight away
+  res.json({ auto_close_days: autoClose.getAutoCloseDays() });
 });
 
 // ----- Settings: email (admin only) -----
@@ -1072,4 +1094,5 @@ db.prepare("UPDATE tokens SET used_at = datetime('now') WHERE type = 'change_ema
 app.listen(PORT, () => {
   console.log(`Ticket system running at http://localhost:${PORT} (links in emails use ${getAppUrl()})`);
   startMailer();
+  autoClose.startAutoClose();
 });

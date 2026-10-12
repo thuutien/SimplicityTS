@@ -60,6 +60,11 @@ log in, their tickets and comments stay (shown as "Name (deleted)"), and their e
 Each ticket page has an **Activity** list on the right (below the comments on narrow screens): who created it, changed its status, priority or department,
 claimed, released or assigned it, and replied, oldest first. Anyone who can open the ticket can see it.
 
+**Resolved vs. Closed:** Resolved means the agent thinks it's fixed; the ticket still counts as open. Closed means done.
+Resolved tickets close automatically after 3 days (**Settings → General → Resolved tickets**; 0 = never). The count starts
+when the ticket is marked Resolved and restarts when the person who raised it replies. The app checks every hour, logs
+"Auto-close" in the ticket's activity and emails the creator.
+
 ## Accounts
 
 - **Sign up:** anyone with an email at `ALLOWED_SIGNUP_DOMAIN` (set in `.env`) can create an account (first name, last name, email,
@@ -89,6 +94,7 @@ immediately, no restart needed. Values saved there override `.env`; empty fields
 | Ticket created | Agents in the ticket's department, plus admins who follow it (every admin if that is nobody) |
 | Ticket assigned | The new assignee |
 | Status changed | The person who created the ticket |
+| Resolved ticket closed automatically | The person who created the ticket |
 | Comment by staff | The ticket creator (and assignee) |
 | Comment by the creator | The assignee, or (if unassigned) the department's agents plus admins who follow it |
 | Ticket moved to another department | That department's agents, plus admins who follow it |

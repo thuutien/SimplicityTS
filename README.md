@@ -32,6 +32,7 @@ Log in with it and change it under **My account**.
 | Create tickets                      | ✅             | ✅    | ✅    |
 | View tickets                        | Own only       | All   | All   |
 | Comment                             | On own tickets | Own dept | Any |
+| See a ticket's activity history     | Own only       | All   | All   |
 | Close ticket                        | Own only       | Own dept | Any |
 | Change status / priority / dept           | ❌             | Own dept | ✅ |
 | Claim a ticket (assign to yourself)         | ❌             | Own dept, unassigned only | ✅ |
@@ -55,6 +56,9 @@ created. Admins can put each agent in a department. Agents can see all tickets, 
 (update, assign, comment on) tickets in their own department; other tickets are read-only for them.
 Tickets can be assigned to admins or to agents in the ticket's department. Deleting a user is a soft delete: they can no longer
 log in, their tickets and comments stay (shown as "Name (deleted)"), and their email can be reused.
+
+Each ticket page has an **Activity** list on the right (below the comments on narrow screens): who created it, changed its status, priority or department,
+claimed, released or assigned it, and replied, oldest first. Anyone who can open the ticket can see it.
 
 ## Accounts
 

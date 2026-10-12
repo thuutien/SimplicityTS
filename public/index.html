@@ -209,15 +209,23 @@
       <!-- Ticket detail -->
       <div id="detail-page" class="page">
         <button class="link" data-nav="tickets" data-keep-filters>&larr; Back to tickets</button>
-        <div id="ticket-detail" class="card"></div>
-        <div class="card">
-          <h3>Comments</h3>
-          <div id="comments"></div>
-          <p id="comment-readonly" class="muted hidden"></p>
-          <form id="comment-form">
-            <textarea name="body" rows="3" placeholder="Write a comment..." required></textarea>
-            <button type="submit">Add comment</button>
-          </form>
+        <div class="detail-layout">
+          <div class="detail-main">
+            <div id="ticket-detail" class="card"></div>
+            <div class="card">
+              <h3>Comments</h3>
+              <div id="comments"></div>
+              <p id="comment-readonly" class="muted hidden"></p>
+              <form id="comment-form">
+                <textarea name="body" rows="3" placeholder="Write a comment..." required></textarea>
+                <button type="submit">Add comment</button>
+              </form>
+            </div>
+          </div>
+          <aside class="card detail-side">
+            <h3>Activity</h3>
+            <ul id="ticket-activity" class="activity-list"></ul>
+          </aside>
         </div>
       </div>
 

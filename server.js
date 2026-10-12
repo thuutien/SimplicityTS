@@ -422,6 +422,12 @@ app.get('/api/tickets/:id', requireAuth, (req, res) => {
     FROM comments cm JOIN users u ON u.id = cm.user_id
     WHERE cm.ticket_id = ? ORDER BY cm.created_at, cm.id
   `).all(ticket.id);
+  // Everything done to this ticket, oldest first (the same viewers as the ticket: its creator and staff)
+  ticket.activity = db.prepare(`
+    SELECT a.id, a.action, a.details, a.created_at, ${displayName('u')} AS user_name, u.role AS user_role
+    FROM activity_log a JOIN users u ON u.id = a.user_id
+    WHERE a.ticket_id = ? ORDER BY a.created_at, a.id
+  `).all(ticket.id);
   ticket.can_work = canWork(req.user, ticket);
   ticket.can_comment = ticket.can_work || ticket.created_by === req.user.id;
   res.json(ticket);

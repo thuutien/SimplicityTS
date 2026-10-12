@@ -925,6 +925,7 @@ async function openTicket(id) {
   } catch (err) {
     $('#ticket-detail').innerHTML = `<p class="error">${esc(err.message)}</p>`;
     $('#comments').innerHTML = '';
+    $('#ticket-activity').innerHTML = '';
     $('#comment-form').classList.add('hidden');
     return;
   }
@@ -986,6 +987,14 @@ async function openTicket(id) {
           <div class="body">${esc(c.body)}</div>
         </div>`).join('')
     : '<p class="muted">No comments yet.</p>';
+
+  $('#ticket-activity').innerHTML = t.activity.length
+    ? t.activity.map(a => `
+        <li>
+          <div><strong>${esc(a.user_name)}</strong> ${badge(a.user_role)} <span class="what">${a.action === 'created' ? 'created the ticket' : activityText(a, 80)}</span></div>
+          <div class="when">${fmtDate(a.created_at)}</div>
+        </li>`).join('')
+    : '<li class="muted">No activity yet.</li>';
 
   $('#comment-form').classList.toggle('hidden', !t.can_comment);
   $('#comment-readonly').classList.toggle('hidden', t.can_comment);

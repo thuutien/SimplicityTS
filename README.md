@@ -58,7 +58,7 @@ Tickets can be assigned to admins or to agents in the ticket's department. Delet
 log in, their tickets and comments stay (shown as "Name (deleted)"), and their email can be reused.
 
 Each ticket page has an **Activity** list on the right (below the comments on narrow screens): who created it, changed its status, priority or department,
-claimed, released or assigned it, and replied, oldest first. Anyone who can open the ticket can see it.
+claimed, released or assigned it, and replied, newest first. Anyone who can open the ticket can see it.
 
 **Resolved vs. Closed:** Resolved means the agent thinks it's fixed; the ticket still counts as open. Closed means done.
 Resolved tickets close automatically after 3 days (**Settings → General → Resolved tickets**; 0 = never). The count starts

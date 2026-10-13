@@ -687,6 +687,11 @@ function updateDateButtons() {
   $('#date-all').setAttribute('aria-pressed', String(!day));
 }
 
+// Claim from the list: unassigned, not closed, and in a department you work on (admins: any).
+// Admins can still take over an assigned ticket from the ticket page.
+const canClaimFromList = t => !t.assigned_to && t.status !== 'closed' &&
+  (me.role === 'admin' || (me.role === 'agent' && me.department_id != null && me.department_id === t.department_id));
+
 async function loadTickets() {
   updateDateButtons();
   if (isStaff()) {
@@ -718,6 +723,7 @@ async function loadTickets() {
       ${staff ? `<td>${esc(t.created_by_name)}</td>` : ''}
       <td>${esc(t.assigned_to_name) || '<span class="muted">Unassigned</span>'}</td>
       <td>${fmtDate(t.updated_at)}</td>
+      ${staff ? `<td class="claim-cell">${canClaimFromList(t) ? `<button type="button" class="success small" data-claim="${t.id}">Claim</button>` : ''}</td>` : ''}
     </tr>`).join('');
   $('#no-tickets').classList.toggle('hidden', tickets.length > 0);
   $('#no-tickets').textContent = `No ${ticketState} tickets${day
@@ -744,7 +750,20 @@ $('#status-filter').addEventListener('change', loadTickets);
 $('#assigned-filter').addEventListener('change', loadTickets);
 $('#department-filter').addEventListener('change', loadTickets);
 
-$('#ticket-rows').addEventListener('click', e => {
+$('#ticket-rows').addEventListener('click', async e => {
+  const claim = e.target.closest('[data-claim]');
+  if (claim) {
+    hideTicketPeek();
+    claim.disabled = true;
+    claim.textContent = 'Claiming…';
+    try {
+      await api('PATCH', `/api/tickets/${claim.dataset.claim}`, { assigned_to: me.id });
+      loadTickets();
+    } catch (err) {
+      claim.closest('td').innerHTML = `<span class="error small">${esc(err.message)}</span>`;
+    }
+    return;
+  }
   const row = e.target.closest('tr[data-id]');
   if (row) {
     hideTicketPeek();

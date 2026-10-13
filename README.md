@@ -66,6 +66,10 @@ Resolved tickets close automatically after 3 days (**Settings → General → Re
 when the ticket is marked Resolved and restarts when the person who raised it replies. The app checks every hour, logs
 "Auto-close" in the ticket's activity and emails the creator.
 
+**Assignee reminders:** while a ticket is still Open or In progress, its assignee gets a reminder email the next day,
+then every day until it is Resolved or Closed (**Settings → General → Assignee reminders**; 1–30 days, 0 = off). The count
+starts when the ticket is assigned or claimed, and restarts when it is reassigned or reopened.
+
 ## Accounts
 
 - **Sign up:** anyone with an email at `ALLOWED_SIGNUP_DOMAIN` (set in `.env`) can create an account (first name, last name, email,
@@ -96,6 +100,7 @@ immediately, no restart needed. Values saved there override `.env`; empty fields
 | Ticket assigned | The new assignee |
 | Status changed | The person who created the ticket |
 | Resolved ticket closed automatically | The person who created the ticket |
+| Ticket still Open / In progress a day after assignment (then daily) | The assignee |
 | Comment by staff | The ticket creator (and assignee) |
 | Comment by the creator | The assignee, or (if unassigned) the department's agents plus admins who follow it |
 | Ticket moved to another department | That department's agents, plus admins who follow it |

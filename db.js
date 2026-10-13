@@ -205,6 +205,20 @@ if (addColumnIfMissing('tickets', 'resolved_at', 'TEXT')) {
   `);
 }
 
+// When the current assignee got the ticket, and when they were last reminded about it
+// (assignees are reminded each day until the ticket is Resolved or Closed).
+// Tickets already assigned use the time of their last claim/assignment, or their last update.
+if (addColumnIfMissing('tickets', 'assigned_at', 'TEXT')) {
+  db.exec(`
+    UPDATE tickets SET assigned_at = COALESCE(
+      (SELECT MAX(a.created_at) FROM activity_log a
+       WHERE a.ticket_id = tickets.id AND a.action IN ('claimed', 'assigned')),
+      updated_at)
+    WHERE assigned_to IS NOT NULL
+  `);
+}
+addColumnIfMissing('tickets', 'reminded_at', 'TEXT');
+
 function getSetting(key, createValue) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
   if (row) return row.value;

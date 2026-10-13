@@ -134,6 +134,22 @@ function ticketAutoClosed(ticketId, days) {
   }));
 }
 
+// Ticket still Open / In progress some days after it was assigned -> the assignee
+function assigneeReminder(ticketId) {
+  const t = getTicket(ticketId);
+  const held = Math.max(1, Math.floor((Date.now() - new Date(t.assigned_at.replace(' ', 'T') + 'Z')) / 86400000));
+  send([getUser(t.assigned_to)], null, t, user => ({
+    greeting: `Hi ${user.first_name},`,
+    lines: [
+      `Reminder: this ticket was assigned to you ${held} ${held === 1 ? 'day' : 'days'} ago and is still ${label(t.status)}.`,
+      ...ticketDetails(t),
+      `Priority: ${label(t.priority)}`,
+      'Please update it, or mark it Resolved when it is done. If someone else should handle it, release it.',
+    ],
+    button: { label: 'View ticket', url: ticketUrl(t.id) },
+  }));
+}
+
 // Database times are UTC ("YYYY-MM-DD HH:MM:SS"); show them in the server's local time.
 const fmtDate = s => new Date(s.replace(' ', 'T') + 'Z').toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -199,4 +215,4 @@ function commentAdded(ticketId, actorId, body, commentId) {
   }));
 }
 
-module.exports = { ticketCreated, ticketUpdated, commentAdded, ticketAutoClosed };
+module.exports = { ticketCreated, ticketUpdated, commentAdded, ticketAutoClosed, assigneeReminder };

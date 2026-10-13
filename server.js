@@ -19,6 +19,7 @@ const forms = require('./forms');
 const activity = require('./activity');
 const events = require('./events');
 const autoClose = require('./autoclose');
+const reminders = require('./reminders');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -495,6 +496,13 @@ app.patch('/api/tickets/:id', requireAuth, (req, res) => {
   // Start the auto-close countdown when a ticket is resolved; stop it when the status changes again.
   if (updates.status === 'resolved' && ticket.status !== 'resolved') sets += ", resolved_at = datetime('now')";
   if (updates.status && updates.status !== 'resolved') sets += ', resolved_at = NULL';
+  // Reminder clock: starts when someone new gets the ticket, and again when a resolved or closed ticket is reopened.
+  if (updates.assigned_to !== undefined && updates.assigned_to !== ticket.assigned_to) {
+    sets += updates.assigned_to ? ", assigned_at = datetime('now'), reminded_at = NULL" : ', assigned_at = NULL, reminded_at = NULL';
+  }
+  if (['open', 'in_progress'].includes(updates.status) && ['resolved', 'closed'].includes(ticket.status)) {
+    sets += ", reminded_at = datetime('now')";
+  }
   db.prepare(`UPDATE tickets SET ${sets}, updated_at = datetime('now') WHERE id = ?`)
     .run(...Object.values(updates), ticket.id);
   // An agent or admin closing a ticket that wasn't Resolved yet resolves it on the way:
@@ -813,6 +821,7 @@ app.get('/api/settings/general', requireAuth, requireAdmin, (req, res) => {
   res.json({
     app_title: getAppTitle(), default_app_title: DEFAULT_APP_TITLE, icon_version: getIconVersion(),
     auto_close_days: autoClose.getAutoCloseDays(),
+    reminder_days: reminders.getReminderDays(),
   });
 });
 
@@ -853,6 +862,16 @@ app.put('/api/settings/general/auto-close', requireAuth, requireAdmin, (req, res
   autoClose.setAutoCloseDays(days);
   autoClose.closeResolvedTickets(); // a shorter wait applies straight away
   res.json({ auto_close_days: autoClose.getAutoCloseDays() });
+});
+
+// Remind assignees about Open / In progress tickets after this many days, then every that many days (0 = never)
+app.put('/api/settings/general/reminders', requireAuth, requireAdmin, (req, res) => {
+  const days = Number(req.body.days);
+  if (!Number.isInteger(days) || days < 0 || days > reminders.MAX_DAYS) {
+    return res.status(400).json({ error: `Enter a whole number of days from 0 to ${reminders.MAX_DAYS}` });
+  }
+  reminders.setReminderDays(days);
+  res.json({ reminder_days: reminders.getReminderDays() });
 });
 
 // ----- Settings: email (admin only) -----
@@ -1099,4 +1118,5 @@ app.listen(PORT, () => {
   console.log(`Ticket system running at http://localhost:${PORT} (links in emails use ${getAppUrl()})`);
   startMailer();
   autoClose.startAutoClose();
+  reminders.startReminders();
 });

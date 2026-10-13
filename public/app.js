@@ -1713,9 +1713,27 @@ async function loadGeneralSettings() {
   $('#icon-error').textContent = '';
   renderIconSetting(s.icon_version);
   $('#auto-close-form').elements.days.value = s.auto_close_days;
+  $('#reminders-form').elements.days.value = s.reminder_days;
+  showNotice('#reminders-notice', '');
+  $('#reminders-error').textContent = '';
   showNotice('#auto-close-notice', '');
   $('#auto-close-error').textContent = '';
 }
+
+$('#reminders-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  showNotice('#reminders-notice', '');
+  $('#reminders-error').textContent = '';
+  try {
+    const { reminder_days: days } = await api('PUT', '/api/settings/general/reminders', { days: Number(e.target.elements.days.value) });
+    e.target.elements.days.value = days;
+    showNotice('#reminders-notice', days
+      ? `Saved. Assignees are reminded ${days === 1 ? 'every day' : `every ${days} days`} until their tickets are Resolved or Closed.`
+      : 'Saved. Reminders are off.');
+  } catch (err) {
+    $('#reminders-error').textContent = err.message;
+  }
+});
 
 $('#auto-close-form').addEventListener('submit', async e => {
   e.preventDefault();

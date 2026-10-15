@@ -35,6 +35,12 @@ function ticketChanged(type, ticket) {
   }
 }
 
+// Tells everyone signed in that the top bar announcement changed (text '' = none).
+function announcementChanged(text) {
+  const message = `event: announcement\ndata: ${JSON.stringify({ text })}\n\n`;
+  for (const { res } of clients) res.write(message);
+}
+
 // Closes a user's live connections (e.g. after they are deleted).
 function disconnectUser(userId) {
   for (const client of clients) {
@@ -45,4 +51,4 @@ function disconnectUser(userId) {
   }
 }
 
-module.exports = { subscribe, ticketChanged, disconnectUser };
+module.exports = { subscribe, ticketChanged, announcementChanged, disconnectUser };

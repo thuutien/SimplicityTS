@@ -123,6 +123,7 @@ $('#reset-form').addEventListener('submit', async e => {
 
 async function showApp() {
   startLiveUpdates();
+  loadAnnouncement();
   await refreshDepartments();
   resetTicketFilters();
   renderMe();
@@ -652,7 +653,50 @@ function startLiveUpdates() {
     clearTimeout(liveRefreshTimer);
     liveRefreshTimer = setTimeout(refreshVisibleLists, 400);
   });
+  liveSource.addEventListener('announcement', e => renderAnnouncement(JSON.parse(e.data).text));
 }
+
+// ----- Announcement in the top bar -----
+let announcement = '';
+
+function renderAnnouncement(text) {
+  announcement = text || '';
+  $('#announcement').classList.toggle('hidden', !announcement);
+  // One line while scrolling; the pop-up keeps the line breaks
+  const line = announcement.replace(/\s*\n+\s*/g, '  ·  ');
+  $('#announcement-text').textContent = line;
+  // Same reading speed whatever the length
+  $('#announcement-text').style.animationDuration = `${Math.max(12, line.length * 0.22)}s`;
+  $('#announcement-full').textContent = announcement;
+  if (!announcement) closeAnnouncement();
+}
+
+async function loadAnnouncement() {
+  try {
+    renderAnnouncement((await api('GET', '/api/announcement')).text);
+  } catch {
+    // keep whatever is shown
+  }
+}
+
+function closeAnnouncement() {
+  if ($('#announcement-modal').classList.contains('hidden')) return;
+  $('#announcement-modal').classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
+$('#announcement').addEventListener('click', () => {
+  $('#announcement-modal').classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  $('#announcement-close').focus();
+});
+$('#announcement-close').addEventListener('click', closeAnnouncement);
+$('#announcement-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeAnnouncement(); // click outside the box
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeAnnouncement();
+});
 
 function stopLiveUpdates() {
   liveSource?.close();
@@ -1748,11 +1792,28 @@ async function loadGeneralSettings() {
   renderIconSetting(s.icon_version);
   $('#auto-close-form').elements.days.value = s.auto_close_days;
   $('#reminders-form').elements.days.value = s.reminder_days;
+  $('#announcement-form').elements.text.value = s.announcement;
+  showNotice('#announcement-notice', '');
+  $('#announcement-error').textContent = '';
   showNotice('#reminders-notice', '');
   $('#reminders-error').textContent = '';
   showNotice('#auto-close-notice', '');
   $('#auto-close-error').textContent = '';
 }
+
+$('#announcement-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  showNotice('#announcement-notice', '');
+  $('#announcement-error').textContent = '';
+  try {
+    const { text } = await api('PUT', '/api/settings/general/announcement', { text: e.target.elements.text.value });
+    e.target.elements.text.value = text;
+    renderAnnouncement(text);
+    showNotice('#announcement-notice', text ? 'Saved. Everyone now sees it in the top bar.' : 'Saved. The announcement is removed.');
+  } catch (err) {
+    $('#announcement-error').textContent = err.message;
+  }
+});
 
 $('#reminders-form').addEventListener('submit', async e => {
   e.preventDefault();

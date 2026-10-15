@@ -94,6 +94,11 @@
         <button data-nav="users" class="admin-only">Users</button>
         <button data-nav="settings" class="admin-only">Settings</button>
       </nav>
+      <!-- Announcement (Settings > General): scrolls across the bar; click to read it in full -->
+      <button type="button" id="announcement" class="announcement hidden" title="Click to read the full announcement">
+        <span class="announcement-icon" aria-hidden="true">📢</span>
+        <span class="announcement-window"><span class="announcement-track" id="announcement-text"></span></span>
+      </button>
       <div class="me">
         <button data-nav="account" class="link me-link" title="My account"><span id="me-name"></span></button>
         <span id="me-role" class="badge"></span> <span id="me-dept" class="badge dept hidden"></span>
@@ -281,7 +286,7 @@
       <div id="settings-page" class="page">
         <h2>Settings</h2>
         <details class="card settings-section" data-section="general">
-          <summary><h3>General</h3><span class="summary-hint">App title, icon, auto-close and reminders</span></summary>
+          <summary><h3>General</h3><span class="summary-hint">App title, icon, auto-close, reminders and announcement</span></summary>
           <form id="general-settings-form" autocomplete="off">
             <label>App title
               <input name="app_title" maxlength="60" placeholder="Ticket System">
@@ -327,6 +332,18 @@
             <div class="form-actions"><button type="submit">Save</button></div>
             <p class="notice hidden" id="reminders-notice"></p>
             <p class="error" id="reminders-error"></p>
+          </form>
+
+          <h4>Announcement</h4>
+          <form id="announcement-form" autocomplete="off">
+            <label>Text shown in the top bar
+              <textarea name="text" rows="4" maxlength="2000" placeholder="e.g. The network will be down for maintenance on Saturday 8–10 AM."></textarea>
+            </label>
+            <p class="hint">Everyone signed in sees it scrolling across the top bar; clicking it shows the full text.
+              Leave it empty and save to remove it.</p>
+            <div class="form-actions"><button type="submit">Save</button></div>
+            <p class="notice hidden" id="announcement-notice"></p>
+            <p class="error" id="announcement-error"></p>
           </form>
         </details>
 
@@ -479,6 +496,17 @@
   </section>
 
   <footer class="app-footer">&copy; <span id="footer-year"></span> SimplicityTS. All rights reserved. <span id="footer-version"></span></footer>
+
+  <!-- Full announcement (opened by clicking it in the top bar) -->
+  <div id="announcement-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="announcement-modal-title">
+    <div class="modal-box narrow">
+      <div class="modal-head">
+        <h2 id="announcement-modal-title">Announcement</h2>
+        <button type="button" id="announcement-close" class="secondary">Close</button>
+      </div>
+      <div class="modal-scroll"><p id="announcement-full" class="announcement-full"></p></div>
+    </div>
+  </div>
 
   <!-- All agent activity (opened from "View all") -->
   <div id="activity-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="activity-modal-title">

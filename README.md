@@ -75,6 +75,8 @@ starts when the ticket is assigned or claimed, and restarts when it is reassigne
 - **Sign up:** anyone with an email at `ALLOWED_SIGNUP_DOMAIN` (set in `.env`) can create an account (first name, last name, email,
   password). They get a verification email and can log in once they click the link. New sign-ups are
   always employees; an admin can change their role.
+- **Announcement:** admins can post a message under **Settings → General → Announcement**. It scrolls across the
+  top bar for everyone signed in (updated live), and clicking it opens the full text. Save it empty to remove it.
 - **My account:** everyone can change their name, password and theme (Light, Dark or System; also a ☀/🌙 button
   in the top bar). The theme is saved to the account. Only admins can change a user's email (Users page).
 - **Forgot password:** on the login page; sends a reset link that works once and expires after 30 minutes.

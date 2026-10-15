@@ -851,11 +851,30 @@ app.get('/api/branding/icon', (req, res) => {
   res.send(Buffer.from(match[2], 'base64'));
 });
 
+// Announcement scrolling in the top bar for everyone signed in (Settings > General; empty = none)
+const MAX_ANNOUNCEMENT = 2000;
+const getAnnouncement = () => readSetting('app.announcement') || '';
+
+app.get('/api/announcement', requireAuth, (req, res) => res.json({ text: getAnnouncement() }));
+
+app.put('/api/settings/general/announcement', requireAuth, requireAdmin, (req, res) => {
+  const text = String(req.body.text || '').trim();
+  if (text.length > MAX_ANNOUNCEMENT) return res.status(400).json({ error: `The announcement can be at most ${MAX_ANNOUNCEMENT} characters` });
+  if (text) {
+    db.prepare("INSERT INTO settings (key, value) VALUES ('app.announcement', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(text);
+  } else {
+    db.prepare("DELETE FROM settings WHERE key = 'app.announcement'").run();
+  }
+  events.announcementChanged(text);
+  res.json({ text });
+});
+
 app.get('/api/settings/general', requireAuth, requireAdmin, (req, res) => {
   res.json({
     app_title: getAppTitle(), default_app_title: DEFAULT_APP_TITLE, icon_version: getIconVersion(),
     auto_close_days: autoClose.getAutoCloseDays(),
     reminder_days: reminders.getReminderDays(),
+    announcement: getAnnouncement(),
   });
 });
 

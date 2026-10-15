@@ -200,6 +200,10 @@
           <div id="request-type" class="request-tabs" role="radiogroup" aria-labelledby="request-type-label"></div>
           <!-- The chosen department's form (built from Settings > Departments) -->
           <div id="request-fields"></div>
+          <!-- Optional: one agent in the chosen department instead of the whole department -->
+          <label id="new-assignee-label">Assign to <span class="muted optional">(optional)</span>
+            <select name="assigned_to" id="new-assignee"></select>
+          </label>
 
           <button type="submit">Submit ticket</button>
           <p class="error" id="new-ticket-error"></p>

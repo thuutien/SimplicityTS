@@ -893,9 +893,20 @@ function fillRequestTypes() {
   showRequestFields();
 }
 
+// "Assign to": the whole department by default, or one of its agents. Keeps the choice if that agent is still listed.
+function fillNewAssignees() {
+  const dept = departments.find(d => String(d.id) === selectedRequestType());
+  const agents = dept?.agents || [];
+  const current = $('#new-assignee').value;
+  $('#new-assignee').innerHTML = `<option value="">Anyone in ${esc(dept?.name || 'the department')}</option>` +
+    agents.map(a => `<option value="${a.id}" ${String(a.id) === current ? 'selected' : ''}>${esc(a.name)}</option>`).join('');
+  $('#new-assignee-label').classList.toggle('hidden', !agents.length);
+}
+
 // Show the chosen request type's fields. Left alone if the form hasn't changed, so typed answers stay.
 let shownForm = '';
 function showRequestFields() {
+  fillNewAssignees();
   const dept = departments.find(d => String(d.id) === selectedRequestType());
   const key = dept ? JSON.stringify([dept.id, dept.form_fields]) : '';
   if (key === shownForm) return;
@@ -911,7 +922,8 @@ $('#new-ticket-form').addEventListener('submit', async e => {
     if (name.startsWith('f:')) fields[name.slice(2)] = value;
   }
   try {
-    const ticket = await api('POST', '/api/tickets', { request_type: selectedRequestType(), fields });
+    const assigned_to = Number($('#new-assignee').value) || null;
+    const ticket = await api('POST', '/api/tickets', { request_type: selectedRequestType(), fields, assigned_to });
     e.target.reset();
     shownForm = '';
     fillRequestTypes();

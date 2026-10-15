@@ -65,13 +65,24 @@ const ticketDetails = t => ticketAnswers(t)
 
 const subjectFor = t => `[#${t.id}] ${t.title}`;
 
+// Picked an agent on the New ticket form -> that agent gets "assigned to you", the rest of the department
+// the usual notice (with who has it).
 function ticketCreated(ticketId, actorId) {
   const t = getTicket(ticketId);
   const creator = getUser(t.created_by);
-  send(departmentRecipients(t.department_id), actorId, t, user => ({
+  const assignee = getUser(t.assigned_to);
+  if (assignee) {
+    send([assignee], actorId, t, user => ({
+      greeting: `Hi ${user.first_name},`,
+      lines: [`${creator.name} created a new ticket for ${t.department_name} and assigned it to you.`, ...ticketDetails(t)],
+      quote: t.description || undefined,
+      button: { label: 'View ticket', url: ticketUrl(t.id) },
+    }));
+  }
+  send(departmentRecipients(t.department_id).filter(u => u.id !== assignee?.id), actorId, t, user => ({
     greeting: `Hi ${user.first_name},`,
     lines: [
-      `${creator.name} created a new ticket for ${t.department_name}.`,
+      `${creator.name} created a new ticket for ${t.department_name}${assignee ? ` and assigned it to ${assignee.name}` : ''}.`,
       ...ticketDetails(t),
     ],
     quote: t.description || undefined,

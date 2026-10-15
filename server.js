@@ -398,20 +398,34 @@ app.get('/api/tickets', requireAuth, (req, res) => {
 });
 
 // The New ticket form: request_type is the id of a department that has a form (Settings > Departments),
-// fields holds the answers by field id. See forms.js.
+// fields holds the answers by field id (see forms.js). assigned_to (optional): an agent in that department;
+// without it the ticket goes to the whole department.
 app.post('/api/tickets', requireAuth, (req, res) => {
   const department = db.prepare('SELECT * FROM departments WHERE id = ? AND form_title IS NOT NULL').get(Number(req.body.request_type) || 0);
   if (!department) return res.status(400).json({ error: 'Please choose a request type' });
   const ticket = forms.readSubmission(department, req.body.fields);
   if (ticket.error) return res.status(400).json({ error: ticket.error });
+  const assignedTo = req.body.assigned_to ? Number(req.body.assigned_to) : null;
+  if (assignedTo && !db.prepare(
+    "SELECT 1 FROM users WHERE id = ? AND role = 'agent' AND department_id = ? AND deleted_at IS NULL"
+  ).get(assignedTo, department.id)) {
+    return res.status(400).json({ error: `Choose an agent in ${department.name}, or leave it to the department` });
+  }
 
   // New tickets start at medium priority; agents can change it.
   const { lastInsertRowid } = db.prepare(`
-    INSERT INTO tickets (title, description, priority, department_id, location, request_item, form_data, created_by)
-    VALUES (?, ?, 'medium', ?, ?, ?, ?, ?)
-  `).run(ticket.title, ticket.description, department.id, ticket.location, ticket.request_item, ticket.form_data, req.user.id);
+    INSERT INTO tickets (title, description, priority, department_id, location, request_item, form_data, created_by,
+      assigned_to, assigned_at)
+    VALUES (?, ?, 'medium', ?, ?, ?, ?, ?, ?, CASE WHEN ? IS NULL THEN NULL ELSE datetime('now') END)
+  `).run(ticket.title, ticket.description, department.id, ticket.location, ticket.request_item, ticket.form_data, req.user.id,
+    assignedTo, assignedTo);
   notify.ticketCreated(lastInsertRowid, req.user.id);
   activity.ticketCreated(lastInsertRowid, req.user.id);
+  if (assignedTo) {
+    // Logged as "assigned" (or "claimed" if they picked themselves)
+    const created = db.prepare('SELECT * FROM tickets WHERE id = ?').get(lastInsertRowid);
+    activity.ticketUpdated({ ...created, assigned_to: null }, req.user.id);
+  }
   events.ticketChanged('created', { id: lastInsertRowid, created_by: req.user.id });
   res.status(201).json(db.prepare(`${TICKET_SELECT} WHERE t.id = ?`).get(lastInsertRowid));
 });
@@ -728,8 +742,13 @@ app.get('/api/activity', requireAuth, requireStaff, (req, res) => {
 // Departments, with their New ticket forms (form_title null = not on the form)
 const departmentWithForm = d => ({ ...d, form_fields: forms.parseFields(d.form_fields) });
 
+// Each department's agents too, for "Assign to" on the New ticket form
 app.get('/api/departments', requireAuth, (req, res) => {
-  res.json(db.prepare('SELECT id, name, request_key, form_title, form_fields FROM departments ORDER BY name').all().map(departmentWithForm));
+  const agents = db.prepare("SELECT id, name, department_id FROM users WHERE role = 'agent' AND deleted_at IS NULL ORDER BY name").all();
+  res.json(db.prepare('SELECT id, name, request_key, form_title, form_fields FROM departments ORDER BY name').all().map(d => ({
+    ...departmentWithForm(d),
+    agents: agents.filter(a => a.department_id === d.id).map(({ id, name }) => ({ id, name })),
+  })));
 });
 
 // ----- Settings: departments (admin only) -----

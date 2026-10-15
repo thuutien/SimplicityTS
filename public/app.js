@@ -129,6 +129,7 @@ async function showApp() {
   renderMe();
   $('#auth-view').classList.add('hidden');
   $('#app-view').classList.remove('hidden');
+  fitAnnouncement(); // in case the announcement arrived while the app was still hidden
   document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', me.role !== 'admin'));
   document.querySelectorAll('.staff-only').forEach(el => el.classList.toggle('hidden', !isStaff()));
   $('#tickets-heading').textContent = isStaff() ? 'All tickets' : 'My tickets';
@@ -669,7 +670,17 @@ function renderAnnouncement(text) {
   $('#announcement-text').style.animationDuration = `${Math.max(12, line.length * 0.22)}s`;
   $('#announcement-full').textContent = announcement;
   if (!announcement) closeAnnouncement();
+  fitAnnouncement();
 }
+
+// Short text that fits in the bar stays still; longer text scrolls. Checked again when the window is resized.
+function fitAnnouncement() {
+  const bar = $('#announcement');
+  if (!announcement || bar.offsetParent === null) return; // hidden: nothing to measure
+  bar.classList.add('static');
+  bar.classList.toggle('static', $('#announcement-text').scrollWidth <= $('.announcement-window').clientWidth);
+}
+window.addEventListener('resize', debounce(fitAnnouncement, 150));
 
 async function loadAnnouncement() {
   try {

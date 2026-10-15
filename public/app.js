@@ -894,13 +894,17 @@ function fillRequestTypes() {
 }
 
 // "Assign to": the whole department by default, or one of its agents. Keeps the choice if that agent is still listed.
+// Shown on every form; disabled with a note when the department has no agents yet.
 function fillNewAssignees() {
   const dept = departments.find(d => String(d.id) === selectedRequestType());
   const agents = dept?.agents || [];
   const current = $('#new-assignee').value;
   $('#new-assignee').innerHTML = `<option value="">Anyone in ${esc(dept?.name || 'the department')}</option>` +
     agents.map(a => `<option value="${a.id}" ${String(a.id) === current ? 'selected' : ''}>${esc(a.name)}</option>`).join('');
-  $('#new-assignee-label').classList.toggle('hidden', !agents.length);
+  $('#new-assignee').disabled = !agents.length;
+  $('#new-assignee-hint').textContent = dept && !agents.length ? `${dept.name} has no agents yet, so it goes to the whole department.` : '';
+  $('#new-assignee-hint').classList.toggle('hidden', !(dept && !agents.length));
+  $('#new-assignee-label').classList.toggle('hidden', !dept);
 }
 
 // Show the chosen request type's fields. Left alone if the form hasn't changed, so typed answers stay.

@@ -134,13 +134,15 @@ function ticketAutoClosed(ticketId, days) {
   }));
 }
 
-// Ticket still Open / In progress some days after it was assigned -> the assignee
-function assigneeReminder(ticketId) {
+// Ticket still Open / In progress some days after it was assigned -> the assignee.
+// sentBy: the admin who sent it from the ticket list (null for the automatic daily reminder).
+function assigneeReminder(ticketId, sentBy = null) {
   const t = getTicket(ticketId);
   const held = Math.max(1, Math.floor((Date.now() - new Date(t.assigned_at.replace(' ', 'T') + 'Z')) / 86400000));
   send([getUser(t.assigned_to)], null, t, user => ({
     greeting: `Hi ${user.first_name},`,
     lines: [
+      ...(sentBy ? [`${sentBy.name} sent you a reminder about this ticket.`] : []),
       `Reminder: this ticket was assigned to you ${held} ${held === 1 ? 'day' : 'days'} ago and is still ${label(t.status)}.`,
       ...ticketDetails(t),
       `Priority: ${label(t.priority)}`,

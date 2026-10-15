@@ -692,6 +692,10 @@ function updateDateButtons() {
 const canClaimFromList = t => !t.assigned_to && t.status !== 'closed' &&
   (me.role === 'admin' || (me.role === 'agent' && me.department_id != null && me.department_id === t.department_id));
 
+// Admins: send the assignee a reminder email about an Open / In progress ticket (not their own).
+const canRemindFromList = t => me.role === 'admin' && t.assigned_to && t.assigned_to !== me.id &&
+  ['open', 'in_progress'].includes(t.status);
+
 async function loadTickets() {
   updateDateButtons();
   if (isStaff()) {
@@ -723,7 +727,8 @@ async function loadTickets() {
       ${staff ? `<td>${esc(t.created_by_name)}</td>` : ''}
       <td>${esc(t.assigned_to_name) || '<span class="muted">Unassigned</span>'}</td>
       <td>${fmtDate(t.updated_at)}</td>
-      ${staff ? `<td class="claim-cell">${canClaimFromList(t) ? `<button type="button" class="success small" data-claim="${t.id}">Claim</button>` : ''}</td>` : ''}
+      ${staff ? `<td class="claim-cell">${canClaimFromList(t) ? `<button type="button" class="success small" data-claim="${t.id}">Claim</button>` : ''}${
+        canRemindFromList(t) ? `<button type="button" class="secondary small" data-remind="${t.id}" title="Email ${esc(t.assigned_to_name)} a reminder">Send reminder</button>` : ''}</td>` : ''}
     </tr>`).join('');
   $('#no-tickets').classList.toggle('hidden', tickets.length > 0);
   $('#no-tickets').textContent = `No ${ticketState} tickets${day
@@ -761,6 +766,19 @@ $('#ticket-rows').addEventListener('click', async e => {
       loadTickets();
     } catch (err) {
       claim.closest('td').innerHTML = `<span class="error small">${esc(err.message)}</span>`;
+    }
+    return;
+  }
+  const remind = e.target.closest('[data-remind]');
+  if (remind) {
+    hideTicketPeek();
+    remind.disabled = true;
+    remind.textContent = 'Sending…';
+    try {
+      await api('POST', `/api/tickets/${remind.dataset.remind}/remind`);
+      remind.textContent = 'Reminder sent';
+    } catch (err) {
+      remind.closest('td').innerHTML = `<span class="error small">${esc(err.message)}</span>`;
     }
     return;
   }

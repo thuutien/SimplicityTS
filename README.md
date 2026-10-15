@@ -78,7 +78,7 @@ starts when the ticket is assigned or claimed, and restarts when it is reassigne
 - **My account:** everyone can change their name, password and theme (Light, Dark or System; also a ☀/🌙 button
   in the top bar). The theme is saved to the account. Only admins can change a user's email (Users page).
 - **Forgot password:** on the login page; sends a reset link that works once and expires after 30 minutes.
-- **New tickets:** choose a Request Type from the tabs (one per department form, Production Request by default) and fill in its form. The ticket goes to that department, the title is generated automatically and priority starts at Medium. On the Tickets tab, resting the mouse on a ticket shows a card with everything that was filled in, and agents and admins can claim unassigned tickets with the **Claim** button at the end of the row (agents only for their own department).
+- **New tickets:** choose a Request Type from the tabs (one per department form, Production Request by default) and fill in its form. The ticket goes to that department, the title is generated automatically and priority starts at Medium. On the Tickets tab, resting the mouse on a ticket shows a card with everything that was filled in, and agents and admins can claim unassigned tickets with the **Claim** button at the end of the row (agents only for their own department). Admins also get a **Send reminder** button on Open and In progress tickets assigned to someone else; it emails the assignee right away and restarts their daily reminder count.
 - **Main admin:** the admin whose email is `ADMIN_EMAIL` in `.env` cannot be deleted or lose its admin role, and only
   they can change their own email and password (other admins can send them a reset link).
 - **Admins** can create users with any email (no verification needed), edit them, set a password, or send them a reset link.
@@ -100,7 +100,7 @@ immediately, no restart needed. Values saved there override `.env`; empty fields
 | Ticket assigned | The new assignee |
 | Status changed | The person who created the ticket |
 | Resolved ticket closed automatically | The person who created the ticket |
-| Ticket still Open / In progress a day after assignment (then daily) | The assignee |
+| Ticket still Open / In progress a day after assignment (then daily), or an admin clicks Send reminder | The assignee |
 | Comment by staff | The ticket creator (and assignee) |
 | Comment by the creator | The assignee, or (if unassigned) the department's agents plus admins who follow it |
 | Ticket moved to another department | That department's agents, plus admins who follow it |

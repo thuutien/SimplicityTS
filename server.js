@@ -524,6 +524,21 @@ app.delete('/api/tickets/:id', requireAuth, requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// Admins: email the assignee a reminder now (Send reminder button on the ticket list).
+// Also restarts the daily reminder count, so the automatic one doesn't follow right after.
+app.post('/api/tickets/:id/remind', requireAuth, requireAdmin, (req, res) => {
+  const ticket = db.prepare(`
+    SELECT t.id, t.status, u.name, u.email FROM tickets t
+    LEFT JOIN users u ON u.id = t.assigned_to AND u.deleted_at IS NULL WHERE t.id = ?
+  `).get(req.params.id);
+  if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+  if (!ticket.email) return res.status(400).json({ error: 'No one is assigned' });
+  if (!['open', 'in_progress'].includes(ticket.status)) return res.status(400).json({ error: 'Only Open or In progress tickets' });
+  db.prepare("UPDATE tickets SET reminded_at = datetime('now') WHERE id = ?").run(ticket.id);
+  notify.assigneeReminder(ticket.id, req.user);
+  res.json({ ok: true, message: `Reminder sent to ${ticket.name}` });
+});
+
 app.post('/api/tickets/:id/comments', requireAuth, (req, res) => {
   const ticket = loadTicket(req, res);
   if (!ticket) return;
